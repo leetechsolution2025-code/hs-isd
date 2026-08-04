@@ -1,0 +1,257 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  type      String   // 'HEADWORKS' or 'CANAL'
+  status    String   @default("chưa thực hiện")
+  
+  category  String?
+  location  String?
+  phaseId   String?
+  
+  investor  String?
+  canalType String?  // 'open' | 'pipe'
+  cropCount Int?     // Số loại cây trồng
+  irrigationCoefficient String?
+  managerId String?
+  
+  summary   String?
+  designConfig String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  phase     Category? @relation("ProjectPhases", fields: [phaseId], references: [id])
+  manager   User?     @relation("ProjectManagers", fields: [managerId], references: [id])
+  
+  nodes     Node[]
+  edges     Edge[]
+  landmarkCoordinates LandmarkCoordinate[]
+  canalStructures CanalStructure[]
+}
+
+model LandmarkCoordinate {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String
+  x         Float
+  y         Float
+  createdAt DateTime @default(now())
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model CanalStructure {
+  id            String   @id @default(uuid())
+  projectId     String
+  name          String
+  
+  // Toạ độ vẽ trên màn hình
+  x             Float
+  y             Float
+  angle         Float
+  
+  // Thông tin chung
+  chainage      String?  
+  length        Float?   
+  
+  // Nhu cầu nước
+  riceArea      Float?   
+  fruitArea     Float?   
+  permeability  String? 
+  reqWaterLevel Float? 
+  
+  // Công trình trên kênh (Inline structures)
+  endChainage   String?
+  headLoss      Float?
+
+
+  // Công trình (cống)
+  offtakeSide   String?  
+  offtakeSize   Float?   
+  offtakeStatus String? 
+  type          String?    
+  status        String?    
+
+  createdAt     DateTime @default(now())
+
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Node {
+  id        String  @id @default(uuid())
+  projectId String
+  type      String  // 'source', 'pump', 'valve', 'sprinkler', 'pipe'
+  positionX Float
+  positionY Float
+  data      String  // JSON string holding specific properties (flow rate, radius, etc.)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Edge {
+  id        String  @id @default(uuid())
+  projectId String
+  source    String  // ID of source node
+  target    String  // ID of target node
+  data      String  // JSON string holding pipe properties (diameter, length, etc.)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      String   @default("USER") // 'ADMIN' or 'USER'
+  
+  // Thông tin cá nhân
+  employeeCode String?  @unique
+  fullName     String?
+  avatarUrl    String?
+  gender       String?
+  dateOfBirth  DateTime?
+  idCardNumber String?
+  idCardIssueDate DateTime?
+  hometown     String?
+  permanentAddress String?
+  
+  // Liên hệ khẩn cấp
+  emergencyContactName String?
+  emergencyContactPhone String?
+  emergencyContactRelation String?
+
+  // Công việc & Hợp đồng
+  departmentId String?
+  levelId      String?
+  employeeTypeId String?
+  contractTypeId String?
+  
+  department   Category? @relation("DepartmentUsers", fields: [departmentId], references: [id])
+  level        Category? @relation("LevelUsers", fields: [levelId], references: [id])
+  employeeType Category? @relation("EmployeeTypeUsers", fields: [employeeTypeId], references: [id])
+  contractType Category? @relation("ContractTypeUsers", fields: [contractTypeId], references: [id])
+
+  startDate    DateTime?
+  workLocation String?
+  contractNumber String?
+  contractSignDate DateTime?
+  contractEndDate  DateTime?
+  socialInsuranceNumber String?
+  taxCode      String?
+  isPayingInsurance Boolean @default(true)
+
+  // Lương & Phúc lợi
+  baseSalary   Float?
+  lunchAllowance Float?
+  fuelAllowance  Float?
+  phoneAllowance Float?
+  seniorityAllowance Float?
+
+  // Tài khoản ngân hàng
+  bankAccountNumber String?
+  bankName     String?
+  bankBranch   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  managedProjects Project[] @relation("ProjectManagers")
+
+  permission         UserPermission?
+  departmentAccesses UserDepartmentAccess[]
+}
+
+model Company {
+  id                String   @id @default(uuid())
+  name              String
+  taxCode           String
+  taxAddress        String
+  address           String
+  slogan            String
+  internationalName String
+  shortName         String
+  representative    String
+  logoUrl           String?  // Store base64 data
+  updatedAt         DateTime @updatedAt
+}
+
+model CategoryGroup {
+  id          String     @id @default(uuid())
+  name        String
+  orderIndex  Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  categories  Category[]
+}
+
+model Category {
+  id          String        @id @default(uuid())
+  groupId     String
+  parentId    String?
+  name        String
+  orderIndex  Int           @default(0)
+  isActive    Boolean       @default(true)
+  metadata    String?       // JSON string for extra fields like A1, m1
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  group       CategoryGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  parent      Category?     @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[]    @relation("CategoryToCategory")
+  
+  departmentUsers   User[] @relation("DepartmentUsers")
+  levelUsers        User[] @relation("LevelUsers")
+  employeeTypeUsers User[] @relation("EmployeeTypeUsers")
+  contractTypeUsers User[] @relation("ContractTypeUsers")
+  
+  projectPhases     Project[] @relation("ProjectPhases")
+  departmentAccesses UserDepartmentAccess[] @relation("CategoryDepartmentAccess")
+}
+
+model UserPermission {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Functional permissions (Booleans)
+  crm       Boolean  @default(false)
+  chat      Boolean  @default(false)
+  notify    Boolean  @default(false)
+  task      Boolean  @default(false)
+  report    Boolean  @default(false)
+  plan      Boolean  @default(false)
+  approve   Boolean  @default(false)
+  oem       Boolean  @default(false)
+  price     Boolean  @default(false)
+  budget    Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserDepartmentAccess {
+  id           String   @id @default(uuid())
+  userId       String
+  departmentId String
+  
+  // 0: Không có quyền, 1: Chỉ xem, 2: Toàn quyền
+  accessLevel  Int      @default(0)
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Category @relation("CategoryDepartmentAccess", fields: [departmentId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, departmentId])
+}
