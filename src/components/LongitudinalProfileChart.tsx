@@ -390,7 +390,7 @@ export default function LongitudinalProfileChart({ data, terrainData, focusedCha
               <g key={`req-${i}`}>
                 <circle cx={x} cy={y} r="3" fill="#dc2626" />
                 <text x={x} y={y - 8} textAnchor="middle" fontSize="9" fill="#dc2626" fontWeight="bold" className="font-sans drop-shadow-sm">
-                  {p.name}: {p.yeuCauVal.toFixed(2)}
+                  {p.yeuCauVal.toFixed(2)}
                 </text>
               </g>
             );

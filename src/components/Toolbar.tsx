@@ -45,13 +45,12 @@ export default function Toolbar({
           </div>
 
           {/* Hệ số gia cố */}
-          <div className="flex items-center gap-2 opacity-60">
+          <div className="flex items-center gap-2">
             <span className="text-slate-600 font-medium">Hệ số gia cố:</span>
             <input 
               type="number" 
               step="any"
-              disabled
-              className="w-20 px-2 py-1 border border-slate-300 rounded outline-none bg-slate-100 cursor-not-allowed"
+              className="w-20 px-2 py-1 border border-slate-300 rounded outline-none focus:border-blue-500 bg-white"
               value={reinforcementFactor}
               onChange={(e) => setReinforcementFactor && setReinforcementFactor(e.target.value)}
             />

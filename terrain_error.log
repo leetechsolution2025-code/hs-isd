@@ -1,0 +1,1456 @@
+PrismaClientValidationError: 
+Invalid `tx.terrainData.createMany()` invocation in
+/Users/leanhvan/hd-isd/.next/dev/server/chunks/ssr/[root-of-the-server]__02el5l_._.js:1017:42
+
+  1014     }));
+  1015 for(let i = 0; i < mappedData.length; i += CHUNK_SIZE){
+  1016     const chunk = mappedData.slice(i, i + CHUNK_SIZE);
+→ 1017     await tx.terrainData.createMany({
+             data: [
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "K0",
+                 lyTrinh: 0,
+                 khoangCach: 0,
+                 caoDo: 19.32
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 5.1,
+                 khoangCach: 5.1,
+                 caoDo: 18.75
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 10.3,
+                 khoangCach: 5.2,
+                 caoDo: 18.05
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 13.1,
+                 khoangCach: 2.8,
+                 caoDo: 18.55
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 15.9,
+                 khoangCach: 2.8,
+                 caoDo: 18.11
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 22.1,
+                 khoangCach: 6.2,
+                 caoDo: 17.44
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 1,
+                 lyTrinh: 28.4,
+                 khoangCach: 6.3,
+                 caoDo: 17.65
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 34.6,
+                 khoangCach: 6.2,
+                 caoDo: 17.16
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 41.11,
+                 khoangCach: 6.51,
+                 caoDo: 18.25
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 47.4,
+                 khoangCach: 6.29,
+                 caoDo: 18.69
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 56.4,
+                 khoangCach: 9,
+                 caoDo: 18.02
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 61.6,
+                 khoangCach: 5.2,
+                 caoDo: 17.69
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 66.9,
+                 khoangCach: 5.3,
+                 caoDo: 16.31
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 73.7,
+                 khoangCach: 6.8,
+                 caoDo: 17.27
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 83.4,
+                 khoangCach: 9.7,
+                 caoDo: 17.93
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 93.2,
+                 khoangCach: 9.8,
+                 caoDo: 18.12
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 99.7,
+                 khoangCach: 6.5,
+                 caoDo: 17.96
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 2,
+                 lyTrinh: 106.3,
+                 khoangCach: 6.6,
+                 caoDo: 18.29
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 112.9,
+                 khoangCach: 6.6,
+                 caoDo: 18.29
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 119.4,
+                 khoangCach: 6.5,
+                 caoDo: 18.87
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 125.9,
+                 khoangCach: 6.5,
+                 caoDo: 18.89
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 131.5,
+                 khoangCach: 5.6,
+                 caoDo: 19
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 137,
+                 khoangCach: 5.5,
+                 caoDo: 18.71
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 142.7,
+                 khoangCach: 5.7,
+                 caoDo: 18.03
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 148.3,
+                 khoangCach: 5.6,
+                 caoDo: 17.61
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 152.8,
+                 khoangCach: 4.5,
+                 caoDo: 17.4
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 157.3,
+                 khoangCach: 4.5,
+                 caoDo: 17.56
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 162.7,
+                 khoangCach: 5.4,
+                 caoDo: 17.68
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 168.2,
+                 khoangCach: 5.5,
+                 caoDo: 17.9
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 173.9,
+                 khoangCach: 5.7,
+                 caoDo: 17.7
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 180.3,
+                 khoangCach: 6.4,
+                 caoDo: 17.5
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 3,
+                 lyTrinh: 186.5,
+                 khoangCach: 6.2,
+                 caoDo: 17.42
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 193.5,
+                 khoangCach: 7,
+                 caoDo: 17.63
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 200.8,
+                 khoangCach: 7.3,
+                 caoDo: 17.86
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 206.9,
+                 khoangCach: 6.1,
+                 caoDo: 18.06
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 4,
+                 lyTrinh: 213.1,
+                 khoangCach: 6.2,
+                 caoDo: 18.2
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 219.5,
+                 khoangCach: 6.4,
+                 caoDo: 17.98
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 226,
+                 khoangCach: 6.5,
+                 caoDo: 17.86
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 232.5,
+                 khoangCach: 6.5,
+                 caoDo: 17.59
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 242.3,
+                 khoangCach: 9.8,
+                 caoDo: 17.46
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 250,
+                 khoangCach: 7.7,
+                 caoDo: 17.63
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 258.2,
+                 khoangCach: 8.2,
+                 caoDo: 17.8
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 266.2,
+                 khoangCach: 8,
+                 caoDo: 18.02
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 274,
+                 khoangCach: 7.8,
+                 caoDo: 18.26
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 275.6,
+                 khoangCach: 1.6,
+                 caoDo: 18.26
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 283.6,
+                 khoangCach: 8,
+                 caoDo: 18.18
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 291.6,
+                 khoangCach: 8,
+                 caoDo: 18.11
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 299.7,
+                 khoangCach: 8.1,
+                 caoDo: 17.76
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 307.6,
+                 khoangCach: 7.9,
+                 caoDo: 17.41
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 313.3,
+                 khoangCach: 5.7,
+                 caoDo: 17.06
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 5,
+                 lyTrinh: 317.5,
+                 khoangCach: 4.2,
+                 caoDo: 16.91
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 321.7,
+                 khoangCach: 4.2,
+                 caoDo: 16.78
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 325.6,
+                 khoangCach: 3.9,
+                 caoDo: 16.66
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 331.3,
+                 khoangCach: 5.7,
+                 caoDo: 16.59
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 336.6,
+                 khoangCach: 5.3,
+                 caoDo: 16.53
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 6,
+                 lyTrinh: 341.7,
+                 khoangCach: 5.1,
+                 caoDo: 16.49
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 346.9,
+                 khoangCach: 5.2,
+                 caoDo: 16.57
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 353.2,
+                 khoangCach: 6.3,
+                 caoDo: 16.58
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 360.5,
+                 khoangCach: 7.3,
+                 caoDo: 16.63
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 367.8,
+                 khoangCach: 7.3,
+                 caoDo: 15.5
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 7,
+                 lyTrinh: 376.3,
+                 khoangCach: 8.5,
+                 caoDo: 16.62
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 376.9,
+                 khoangCach: 0.6,
+                 caoDo: 15.97
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 377.9,
+                 khoangCach: 1,
+                 caoDo: 15.97
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 378.4,
+                 khoangCach: 0.5,
+                 caoDo: 16.72
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 382.2,
+                 khoangCach: 3.8,
+                 caoDo: 16.87
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 387.8,
+                 khoangCach: 5.6,
+                 caoDo: 17.19
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 8,
+                 lyTrinh: 396.2,
+                 khoangCach: 8.4,
+                 caoDo: 17.65
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 404.7,
+                 khoangCach: 8.5,
+                 caoDo: 17.83
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 414.5,
+                 khoangCach: 9.8,
+                 caoDo: 17.96
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 418.8,
+                 khoangCach: 4.3,
+                 caoDo: 18.03
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 9,
+                 lyTrinh: 424.4,
+                 khoangCach: 5.6,
+                 caoDo: 17.96
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 429.6,
+                 khoangCach: 5.2,
+                 caoDo: 17.91
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 433.1,
+                 khoangCach: 3.5,
+                 caoDo: 17.85
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 442.5,
+                 khoangCach: 9.4,
+                 caoDo: 16.71
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 10,
+                 lyTrinh: 454.9,
+                 khoangCach: 12.4,
+                 caoDo: 16.04
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 461.9,
+                 khoangCach: 7,
+                 caoDo: 15.93
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 463.3,
+                 khoangCach: 1.4,
+                 caoDo: 14.49
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 467.9,
+                 khoangCach: 4.6,
+                 caoDo: 14.35
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 473.7,
+                 khoangCach: 5.8,
+                 caoDo: 14.2
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 11,
+                 lyTrinh: 478.3,
+                 khoangCach: 4.6,
+                 caoDo: 14.04
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 483.1,
+                 khoangCach: 4.8,
+                 caoDo: 13.76
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 485.6,
+                 khoangCach: 2.5,
+                 caoDo: 10.4
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 487.3,
+                 khoangCach: 1.7,
+                 caoDo: 10.4
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 489.7,
+                 khoangCach: 2.4,
+                 caoDo: 14.55
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 491,
+                 khoangCach: 1.3,
+                 caoDo: 14.61
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 494.1,
+                 khoangCach: 3.1,
+                 caoDo: 17.71
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 498.9,
+                 khoangCach: 4.8,
+                 caoDo: 17.74
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 504.9,
+                 khoangCach: 6,
+                 caoDo: 18.02
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 510.9,
+                 khoangCach: 6,
+                 caoDo: 18.09
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 516.5,
+                 khoangCach: 5.6,
+                 caoDo: 18.16
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 521.8,
+                 khoangCach: 5.3,
+                 caoDo: 18.26
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 526.3,
+                 khoangCach: 4.5,
+                 caoDo: 18.32
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 12,
+                 lyTrinh: 531.5,
+                 khoangCach: 5.2,
+                 caoDo: 18.34
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 538.3,
+                 khoangCach: 6.8,
+                 caoDo: 18.31
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 543.1,
+                 khoangCach: 4.8,
+                 caoDo: 18.31
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 553,
+                 khoangCach: 9.9,
+                 caoDo: 18.15
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 13,
+                 lyTrinh: 558.4,
+                 khoangCach: 5.4,
+                 caoDo: 18.05
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 564.1,
+                 khoangCach: 5.7,
+                 caoDo: 17.77
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 568.7,
+                 khoangCach: 4.6,
+                 caoDo: 17.59
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 573,
+                 khoangCach: 4.3,
+                 caoDo: 17.48
+               }
+             ]
+           })
+
+Argument `tenMoc`: Invalid value provided. Expected String, provided Int.
+PrismaClientValidationError: 
+Invalid `tx.terrainData.createMany()` invocation in
+/Users/leanhvan/hd-isd/.next/dev/server/chunks/ssr/[root-of-the-server]__02el5l_._.js:1017:42
+
+  1014     }));
+  1015 for(let i = 0; i < mappedData.length; i += CHUNK_SIZE){
+  1016     const chunk = mappedData.slice(i, i + CHUNK_SIZE);
+→ 1017     await tx.terrainData.createMany({
+             data: [
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "K0",
+                 lyTrinh: 0,
+                 khoangCach: 0,
+                 caoDo: 19.32
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 5.1,
+                 khoangCach: 5.1,
+                 caoDo: 18.75
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 10.3,
+                 khoangCach: 5.2,
+                 caoDo: 18.05
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 13.1,
+                 khoangCach: 2.8,
+                 caoDo: 18.55
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 15.9,
+                 khoangCach: 2.8,
+                 caoDo: 18.11
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 22.1,
+                 khoangCach: 6.2,
+                 caoDo: 17.44
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 1,
+                 lyTrinh: 28.4,
+                 khoangCach: 6.3,
+                 caoDo: 17.65
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 34.6,
+                 khoangCach: 6.2,
+                 caoDo: 17.16
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 41.11,
+                 khoangCach: 6.51,
+                 caoDo: 18.25
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 47.4,
+                 khoangCach: 6.29,
+                 caoDo: 18.69
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 56.4,
+                 khoangCach: 9,
+                 caoDo: 18.02
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 61.6,
+                 khoangCach: 5.2,
+                 caoDo: 17.69
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 66.9,
+                 khoangCach: 5.3,
+                 caoDo: 16.31
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 73.7,
+                 khoangCach: 6.8,
+                 caoDo: 17.27
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 83.4,
+                 khoangCach: 9.7,
+                 caoDo: 17.93
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 93.2,
+                 khoangCach: 9.8,
+                 caoDo: 18.12
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 99.7,
+                 khoangCach: 6.5,
+                 caoDo: 17.96
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 2,
+                 lyTrinh: 106.3,
+                 khoangCach: 6.6,
+                 caoDo: 18.29
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 112.9,
+                 khoangCach: 6.6,
+                 caoDo: 18.29
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 119.4,
+                 khoangCach: 6.5,
+                 caoDo: 18.87
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 125.9,
+                 khoangCach: 6.5,
+                 caoDo: 18.89
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 131.5,
+                 khoangCach: 5.6,
+                 caoDo: 19
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 137,
+                 khoangCach: 5.5,
+                 caoDo: 18.71
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 142.7,
+                 khoangCach: 5.7,
+                 caoDo: 18.03
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 148.3,
+                 khoangCach: 5.6,
+                 caoDo: 17.61
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 152.8,
+                 khoangCach: 4.5,
+                 caoDo: 17.4
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 157.3,
+                 khoangCach: 4.5,
+                 caoDo: 17.56
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 162.7,
+                 khoangCach: 5.4,
+                 caoDo: 17.68
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 168.2,
+                 khoangCach: 5.5,
+                 caoDo: 17.9
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 173.9,
+                 khoangCach: 5.7,
+                 caoDo: 17.7
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 180.3,
+                 khoangCach: 6.4,
+                 caoDo: 17.5
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 3,
+                 lyTrinh: 186.5,
+                 khoangCach: 6.2,
+                 caoDo: 17.42
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 193.5,
+                 khoangCach: 7,
+                 caoDo: 17.63
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 200.8,
+                 khoangCach: 7.3,
+                 caoDo: 17.86
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 206.9,
+                 khoangCach: 6.1,
+                 caoDo: 18.06
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 4,
+                 lyTrinh: 213.1,
+                 khoangCach: 6.2,
+                 caoDo: 18.2
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 219.5,
+                 khoangCach: 6.4,
+                 caoDo: 17.98
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 226,
+                 khoangCach: 6.5,
+                 caoDo: 17.86
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 232.5,
+                 khoangCach: 6.5,
+                 caoDo: 17.59
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 242.3,
+                 khoangCach: 9.8,
+                 caoDo: 17.46
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 250,
+                 khoangCach: 7.7,
+                 caoDo: 17.63
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 258.2,
+                 khoangCach: 8.2,
+                 caoDo: 17.8
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 266.2,
+                 khoangCach: 8,
+                 caoDo: 18.02
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 274,
+                 khoangCach: 7.8,
+                 caoDo: 18.26
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 275.6,
+                 khoangCach: 1.6,
+                 caoDo: 18.26
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 283.6,
+                 khoangCach: 8,
+                 caoDo: 18.18
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 291.6,
+                 khoangCach: 8,
+                 caoDo: 18.11
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 299.7,
+                 khoangCach: 8.1,
+                 caoDo: 17.76
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 307.6,
+                 khoangCach: 7.9,
+                 caoDo: 17.41
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 313.3,
+                 khoangCach: 5.7,
+                 caoDo: 17.06
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 5,
+                 lyTrinh: 317.5,
+                 khoangCach: 4.2,
+                 caoDo: 16.91
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 321.7,
+                 khoangCach: 4.2,
+                 caoDo: 16.78
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 325.6,
+                 khoangCach: 3.9,
+                 caoDo: 16.66
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 331.3,
+                 khoangCach: 5.7,
+                 caoDo: 16.59
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 336.6,
+                 khoangCach: 5.3,
+                 caoDo: 16.53
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 6,
+                 lyTrinh: 341.7,
+                 khoangCach: 5.1,
+                 caoDo: 16.49
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 346.9,
+                 khoangCach: 5.2,
+                 caoDo: 16.57
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 353.2,
+                 khoangCach: 6.3,
+                 caoDo: 16.58
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 360.5,
+                 khoangCach: 7.3,
+                 caoDo: 16.63
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 367.8,
+                 khoangCach: 7.3,
+                 caoDo: 15.5
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 7,
+                 lyTrinh: 376.3,
+                 khoangCach: 8.5,
+                 caoDo: 16.62
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 376.9,
+                 khoangCach: 0.6,
+                 caoDo: 15.97
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 377.9,
+                 khoangCach: 1,
+                 caoDo: 15.97
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 378.4,
+                 khoangCach: 0.5,
+                 caoDo: 16.72
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 382.2,
+                 khoangCach: 3.8,
+                 caoDo: 16.87
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 387.8,
+                 khoangCach: 5.6,
+                 caoDo: 17.19
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 8,
+                 lyTrinh: 396.2,
+                 khoangCach: 8.4,
+                 caoDo: 17.65
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 404.7,
+                 khoangCach: 8.5,
+                 caoDo: 17.83
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 414.5,
+                 khoangCach: 9.8,
+                 caoDo: 17.96
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 418.8,
+                 khoangCach: 4.3,
+                 caoDo: 18.03
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 9,
+                 lyTrinh: 424.4,
+                 khoangCach: 5.6,
+                 caoDo: 17.96
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 429.6,
+                 khoangCach: 5.2,
+                 caoDo: 17.91
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 433.1,
+                 khoangCach: 3.5,
+                 caoDo: 17.85
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 442.5,
+                 khoangCach: 9.4,
+                 caoDo: 16.71
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 10,
+                 lyTrinh: 454.9,
+                 khoangCach: 12.4,
+                 caoDo: 16.04
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 461.9,
+                 khoangCach: 7,
+                 caoDo: 15.93
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 463.3,
+                 khoangCach: 1.4,
+                 caoDo: 14.49
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 467.9,
+                 khoangCach: 4.6,
+                 caoDo: 14.35
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 473.7,
+                 khoangCach: 5.8,
+                 caoDo: 14.2
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 11,
+                 lyTrinh: 478.3,
+                 khoangCach: 4.6,
+                 caoDo: 14.04
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 483.1,
+                 khoangCach: 4.8,
+                 caoDo: 13.76
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 485.6,
+                 khoangCach: 2.5,
+                 caoDo: 10.4
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 487.3,
+                 khoangCach: 1.7,
+                 caoDo: 10.4
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 489.7,
+                 khoangCach: 2.4,
+                 caoDo: 14.55
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 491,
+                 khoangCach: 1.3,
+                 caoDo: 14.61
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 494.1,
+                 khoangCach: 3.1,
+                 caoDo: 17.71
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 498.9,
+                 khoangCach: 4.8,
+                 caoDo: 17.74
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 504.9,
+                 khoangCach: 6,
+                 caoDo: 18.02
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 510.9,
+                 khoangCach: 6,
+                 caoDo: 18.09
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 516.5,
+                 khoangCach: 5.6,
+                 caoDo: 18.16
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 521.8,
+                 khoangCach: 5.3,
+                 caoDo: 18.26
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 526.3,
+                 khoangCach: 4.5,
+                 caoDo: 18.32
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 12,
+                 lyTrinh: 531.5,
+                 khoangCach: 5.2,
+                 caoDo: 18.34
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 538.3,
+                 khoangCach: 6.8,
+                 caoDo: 18.31
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 543.1,
+                 khoangCach: 4.8,
+                 caoDo: 18.31
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 553,
+                 khoangCach: 9.9,
+                 caoDo: 18.15
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: 13,
+                 lyTrinh: 558.4,
+                 khoangCach: 5.4,
+                 caoDo: 18.05
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 564.1,
+                 khoangCach: 5.7,
+                 caoDo: 17.77
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 568.7,
+                 khoangCach: 4.6,
+                 caoDo: 17.59
+               },
+               {
+                 projectId: "02e3b2e3-de0a-49c0-add7-79e809f9fa13",
+                 tenMoc: "",
+                 lyTrinh: 573,
+                 khoangCach: 4.3,
+                 caoDo: 17.48
+               }
+             ]
+           })
+
+Argument `tenMoc`: Invalid value provided. Expected String, provided Int.
+    at ar (/Users/leanhvan/hd-isd/node_modules/@prisma/client/runtime/client.js:10:1374)
+    at Jr.handleRequestError (/Users/leanhvan/hd-isd/node_modules/@prisma/client/runtime/client.js:65:7929)
+    at Jr.handleAndLogRequestError (/Users/leanhvan/hd-isd/node_modules/@prisma/client/runtime/client.js:65:7581)
+    at Jr.request (/Users/leanhvan/hd-isd/node_modules/@prisma/client/runtime/client.js:65:7288)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async a (/Users/leanhvan/hd-isd/node_modules/@prisma/client/runtime/client.js:99:6862)
+    at async /Users/leanhvan/hd-isd/.next/dev/server/chunks/ssr/[root-of-the-server]__02el5l_._.js:1017:21
+    at async Proxy._transactionWithCallback (/Users/leanhvan/hd-isd/node_modules/@prisma/client/runtime/client.js:99:4800)
+    at async saveTerrainData (/Users/leanhvan/hd-isd/.next/dev/server/chunks/ssr/[root-of-the-server]__02el5l_._.js:998:9)
+    at async executeActionAndPrepareForRender (/Users/leanhvan/hd-isd/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:66:5248)
+    at async /Users/leanhvan/hd-isd/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:66:1986
+    at async handleAction (/Users/leanhvan/hd-isd/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:64:26472)
+    at async renderToHTMLOrFlightImpl (/Users/leanhvan/hd-isd/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:70:55695)
+    at async doRender (/Users/leanhvan/hd-isd/.next/dev/server/chunks/ssr/node_modules_1rw-9ma._.js:5178:28)
+    at async AppPageRouteModule.handleResponse (/Users/leanhvan/hd-isd/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:72:67020)
+    at async handleResponse (/Users/leanhvan/hd-isd/.next/dev/server/chunks/ssr/node_modules_1rw-9ma._.js:5489:32)
+    at async Module.handler (/Users/leanhvan/hd-isd/.next/dev/server/chunks/ssr/node_modules_1rw-9ma._.js:5895:20)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/leanhvan/hd-isd/node_modules/next/dist/server/base-server.js:1462:9)
+    at async DevServer.renderPageComponent (/Users/leanhvan/hd-isd/node_modules/next/dist/server/base-server.js:1514:24)
+    at async DevServer.renderToResponseImpl (/Users/leanhvan/hd-isd/node_modules/next/dist/server/base-server.js:1564:32)
+    at async DevServer.pipeImpl (/Users/leanhvan/hd-isd/node_modules/next/dist/server/base-server.js:1044:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/leanhvan/hd-isd/node_modules/next/dist/server/next-server.js:338:17)
+    at async DevServer.handleRequestImpl (/Users/leanhvan/hd-isd/node_modules/next/dist/server/base-server.js:935:17)
+    at async /Users/leanhvan/hd-isd/node_modules/next/dist/server/dev/next-dev-server.js:394:20
+    at async Span.traceAsyncFn (/Users/leanhvan/hd-isd/node_modules/next/dist/trace/trace.js:164:20)
+    at async DevServer.handleRequest (/Users/leanhvan/hd-isd/node_modules/next/dist/server/dev/next-dev-server.js:390:24)
+    at async invokeRender (/Users/leanhvan/hd-isd/node_modules/next/dist/server/lib/router-server.js:266:21)
+    at async handleRequest (/Users/leanhvan/hd-isd/node_modules/next/dist/server/lib/router-server.js:465:24)
+    at async requestHandlerImpl (/Users/leanhvan/hd-isd/node_modules/next/dist/server/lib/router-server.js:514:13)
+    at async Server.requestListener (/Users/leanhvan/hd-isd/node_modules/next/dist/server/lib/start-server.js:225:13)

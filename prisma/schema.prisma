@@ -68,10 +68,12 @@ model CanalStructure {
   length   Float?
 
   // Nhu cầu nước
-  riceArea      Float?
-  fruitArea     Float?
-  permeability  String?
-  reqWaterLevel Float?
+  riceArea       Float?
+  fruitArea      Float?
+  permeability   String?
+  reqWaterLevel  Float?
+  flowCalcMethod String?
+  reqFlow        Float?
 
   // Công trình trên kênh (Inline structures)
   endChainage String?

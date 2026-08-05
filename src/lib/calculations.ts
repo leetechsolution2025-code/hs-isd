@@ -93,10 +93,10 @@ export function calculateSafeHeight(flow: number, canalType: 'gia_co' | 'khong_g
     return canalType === 'khong_gia_co' ? '0.30' : '0.20';
   }
   if (flow > 10 && flow <= 30) {
-    return canalType === 'khong_gia_co' ? '0.40' : '0.30';
+    return canalType === 'khong_gia_co' ? '0.40' : '0.25';
   }
   if (flow > 30 && flow <= 50) {
-    return canalType === 'khong_gia_co' ? '0.50' : '0.35';
+    return canalType === 'khong_gia_co' ? '0.50' : '0.30';
   }
   if (flow > 50 && flow <= 100) {
     return canalType === 'khong_gia_co' ? '0.60' : '0.40';

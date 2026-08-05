@@ -28,7 +28,7 @@ const designSteps: ModernStepItem[] = [
   { num: 2, id: "flow", title: "Tính lưu lượng", desc: "Lưu lượng thiết kế", icon: "bi-water" },
   { num: 3, id: "cross-section", title: "Mặt cắt ngang", desc: "Mặt cắt ngang", icon: "bi-arrows-collapse" },
   { num: 4, id: "long-profile", title: "Cắt dọc", desc: "Mặt cắt dọc", icon: "bi-bar-chart-steps" },
-  { num: 5, id: "branch", title: "Kênh nhánh", desc: "Thiết kế tuyến kênh", icon: "bi-share" },
+  { num: 5, id: "branch", title: "Xuất bản vẽ", desc: "Thiết kế tuyến kênh", icon: "bi-share" },
   { num: 6, id: "headworks", title: "Cống đầu kênh nhánh", desc: "Công trình điều tiết", icon: "bi-building" },
 ];
 
@@ -84,6 +84,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const [offtakeStatus, setOfftakeStatus] = useState<'moi' | 'sua' | 'da_co'>('moi');
   
   const [canalLengthInput, setCanalLengthInput] = useState<string>('0');
+  const [flowCalcMethodInput, setFlowCalcMethodInput] = useState('tinh_toan');
+  const [reqFlowInput, setReqFlowInput] = useState<string>('0');
   const [riceAreaInput, setRiceAreaInput] = useState<string>('0');
   const [fruitAreaInput, setFruitAreaInput] = useState<string>('0');
   const [permeabilityInput, setPermeabilityInput] = useState('rat_it');
@@ -100,12 +102,13 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const [calcLoss, setCalcLoss] = useState<string>('');
   
   const [sourceFlow, setSourceFlow] = useState<string>('');
-  const [reinforcementFactor, setReinforcementFactor] = useState<string>('');
+  const [reinforcementFactor, setReinforcementFactor] = useState<string>('1');
   const [permeabilityLevel, setPermeabilityLevel] = useState<string>('rat_it');
   const [applyToAll, setApplyToAll] = useState<boolean>(false);
   const [segmentPermeabilities, setSegmentPermeabilities] = useState<Record<string, string>>({});
-  const [segmentBreakpoints, setSegmentBreakpoints] = useState<number[]>([]);
+  const [segmentBreakpoints, setSegmentBreakpoints] = useState<string[]>([]);
   const [autoSegment, setAutoSegment] = useState<boolean>(false);
+
 
   // Step 3 properties states
   const [calcMethod, setCalcMethod] = useState<'thu_cong' | 'tu_dong'>('tu_dong');
@@ -141,7 +144,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const [canalStructures, setCanalStructures] = useState<{ 
     id: string, name: string, x: number, y: number, angle: number, status: StructureStatus, type: any,
     chainage?: string, length?: number, riceArea?: number, fruitArea?: number, permeability?: string, reqWaterLevel?: number, offtakeSide?: string, offtakeSize?: number, offtakeStatus?: string,
-    inlineStructureType?: string, endChainage?: string, headLoss?: number, inletLoss?: number, outletLoss?: number, frictionLoss?: number
+    inlineStructureType?: string, endChainage?: string, headLoss?: number, inletLoss?: number, outletLoss?: number, frictionLoss?: number,
+    flowCalcMethod?: string, reqFlow?: number
   }[]>([]);
   const [selectedStructureId, setSelectedStructureId] = useState('');
   const [isTerrainDataOpen, setIsTerrainDataOpen] = useState(false);
@@ -408,6 +412,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
         setCanalNameInput(struct.name || '');
         setChainageInput(struct.chainage || '');
         setCanalLengthInput(struct.length?.toString() || '0');
+        setFlowCalcMethodInput(struct.flowCalcMethod || 'tinh_toan');
+        setReqFlowInput(struct.reqFlow?.toString() || '0');
         setRiceAreaInput(struct.riceArea?.toString() || '0');
         setFruitAreaInput(struct.fruitArea?.toString() || '0');
         setPermeabilityInput(struct.permeability || 'rat_it');
@@ -548,7 +554,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
         canalType,
         permeability,
         efficiency,
-        totalFlow
+        totalFlow: struct.flowCalcMethod === 'nhap_gia_tri' ? (Number(struct.reqFlow) || 0) : totalFlow
       };
     });
 
@@ -619,7 +625,9 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
         const deltaL_km = (nextNode.chainage - currNode.chainage) / 1000;
         let loss = 0;
         if (deltaL_km > 0) {
-          loss = (10 * A1 * Math.pow(nextNode.q_truoc, 1 - m1) * deltaL_km) / 1000;
+          const rf = Number(reinforcementFactor);
+          const validRf = (!isNaN(rf) && reinforcementFactor !== '') ? rf : 1;
+          loss = (10 * A1 * Math.pow(nextNode.q_truoc, 1 - m1) * deltaL_km) / 1000 * validRf;
         }
         currNode.loss = loss;
         currNode.q_sau = nextNode.q_truoc + loss;
@@ -628,14 +636,29 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
     }
 
     return { cropNames, processedBranches, sortedBranches, flowNodes };
-  }, [project?.irrigationCoefficient, canalStructures, permeabilityLevel, permeabilityMainOptions, segmentPermeabilities, importedPoints, sourceFlow]);
+  }, [project?.irrigationCoefficient, canalStructures, permeabilityLevel, permeabilityMainOptions, segmentPermeabilities, importedPoints, sourceFlow, reinforcementFactor]);
+
+  // Backward compatibility: Convert numeric breakpoints to node IDs
+  useEffect(() => {
+    if (segmentBreakpoints.length > 0 && typeof segmentBreakpoints[0] === 'number' && flowNodesData.flowNodes.length > 0) {
+      const newBreakpoints = (segmentBreakpoints as any as number[])
+        .map(idx => flowNodesData.flowNodes[idx]?.id)
+        .filter(Boolean);
+      setSegmentBreakpoints(newBreakpoints);
+    }
+  }, [segmentBreakpoints, flowNodesData.flowNodes]);
 
   const computedSegments = useMemo(() => {
     if (!flowNodesData.flowNodes || flowNodesData.flowNodes.length === 0) return [];
     
+    const breakpointIndices = segmentBreakpoints
+       .map(id => flowNodesData.flowNodes.findIndex((n: any) => n.id === id))
+       .filter(idx => idx > 0)
+       .sort((a, b) => a - b);
+
     const segments: {startIdx: number, endIdx: number | null}[] = [];
     let startIdx = 0;
-    segmentBreakpoints.forEach(bp => {
+    breakpointIndices.forEach(bp => {
       segments.push({ startIdx, endIdx: bp });
       startIdx = bp;
     });
@@ -705,7 +728,11 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                 frictionLoss = 0;
               }
               
-              runningDay = runningDay - frictionLoss - (node.loss || 0);
+              let localHeadLoss = 0;
+              if (node.type === 'inline_structure_end' || node.type === 'inline_structure') {
+                localHeadLoss = Number(node.headLoss) || 0;
+              }
+              runningDay = runningDay - frictionLoss - localHeadLoss;
               elevations[segIdx][index] = runningDay;
            } else {
               elevations[segIdx][index] = null;
@@ -756,11 +783,11 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
       }
 
       if (startNode) {
-        setDesignFlow(formatNum(startNode.q_truoc, 3));
-        if (res && res.safeHeight) {
+        setDesignFlow(formatNum(startNode.q_sau, 3));
+        if (res && res.safeHeight && !res.safeHeight.includes('-')) {
           setSafeHeight(res.safeHeight);
         } else {
-          setSafeHeight(calculateSafeHeight(startNode.q_truoc, crossSectionType));
+          setSafeHeight(calculateSafeHeight(startNode.q_sau, crossSectionType));
         }
       }
     } else {
@@ -801,7 +828,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
     const nodes = flowNodesData.flowNodes;
     if (nodes.length <= 1) return;
 
-    const newBreakpoints: number[] = [];
+    const newBreakpoints: string[] = [];
     let startQ = parseFloat(nodes[0].q_truoc) || 0;
 
     for (let i = 1; i < nodes.length; i++) {
@@ -809,7 +836,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
       if (startQ > 0) {
         const diffPercent = ((startQ - currentQ) / startQ) * 100;
         if (diffPercent >= diffVal) {
-          newBreakpoints.push(i);
+          newBreakpoints.push(nodes[i].id);
           startQ = currentQ;
         }
       }
@@ -929,11 +956,11 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
         const htkVal = (dayVal !== null && isDesigned && res.h_des) ? dayVal + Number(res.h_des) : null;
         
         let safeHeightVal = 0;
-        if (res && res.safeHeight) {
+        if (res && res.safeHeight && !String(res.safeHeight).includes('-')) {
           safeHeightVal = Number(String(res.safeHeight).replace(',', '.'));
           if (isNaN(safeHeightVal)) safeHeightVal = 0;
-        } else {
-          safeHeightVal = Number(calculateSafeHeight(flowNodesData.flowNodes[seg.startIdx].q_truoc, res?.crossSectionType as any)) || 0;
+        } else if (seg.startIdx !== null && flowNodesData.flowNodes[seg.startIdx]) {
+          safeHeightVal = Number(calculateSafeHeight(flowNodesData.flowNodes[seg.startIdx].q_sau, res?.crossSectionType as any)) || 0;
         }
         
         const h_max_val = !isNaN(Number(res?.h_max)) ? Number(res?.h_max) : 0;
@@ -957,13 +984,18 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
         
         const isDrop = segIdx > 0 && index === seg.startIdx;
         
-        if (node.loss > 0 && dayVal !== null && htkVal !== null && dinhKenhVal !== null) {
+        let localHeadLoss = 0;
+        if (node.type === 'inline_structure_end' || node.type === 'inline_structure') {
+          localHeadLoss = Number(node.headLoss) || 0;
+        }
+
+        if (localHeadLoss > 0 && dayVal !== null && htkVal !== null && dinhKenhVal !== null) {
           data.push({
             chainage: node.chainage || 0,
             chainageDisplay,
-            dayVal: dayVal + node.loss,
-            htkVal: htkVal + node.loss,
-            dinhKenhVal: dinhKenhVal + node.loss,
+            dayVal: dayVal + localHeadLoss,
+            htkVal: htkVal + localHeadLoss,
+            dinhKenhVal: dinhKenhVal + localHeadLoss,
             yeuCauVal: null,
             name: '',
             isDrop: true
@@ -986,6 +1018,17 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
     
     return data;
   }, [currentStep, computedSegments, segmentHydraulicResults, flowNodesData.flowNodes, nodeElevations]);
+
+  useEffect(() => {
+    if (focusedChainage !== null) {
+      setTimeout(() => {
+        const row = document.getElementById(`row-${focusedChainage}`);
+        if (row) {
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [focusedChainage]);
 
   if (!isOpen) return null;
 
@@ -1247,15 +1290,15 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           </>
                         }
                       >
-                        {processedBranches && processedBranches.length > 0 ? (
-                          processedBranches.map((branch: any, idx: number) => (
+                        {sortedBranches && sortedBranches.length > 0 ? (
+                          sortedBranches.map((branch: any, idx: number) => (
                             <tr key={branch.id} className="hover:bg-slate-50 border-b border-slate-100 last:border-b-0 text-[13px]">
                               <td className="px-4 py-2 text-center text-slate-500">{idx + 1}</td>
                               <td className="px-4 py-2 text-slate-700 font-medium">{branch.name || `Kênh nhánh ${idx + 1}`}</td>
                               <td className="px-4 py-2 text-slate-700">{formatNum(branch.chainage)}</td>
                               {cropNames.map((c: string, i: number) => (
                                 <td key={i} className="px-4 py-2 text-center text-slate-700">
-                                  {c.toLowerCase().includes('lúa') ? formatNum(branch.riceArea) : formatNum(branch.fruitArea)}
+                                  {c.toLowerCase().includes('lúa') ? (branch.riceArea > 0 ? formatNum(branch.riceArea) : '-') : (branch.fruitArea > 0 ? formatNum(branch.fruitArea) : '-')}
                                 </td>
                               ))}
                               <td className="px-4 py-2 text-center text-slate-700">
@@ -1264,7 +1307,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                               <td className="px-4 py-2 text-center font-semibold text-blue-600">
                                 {branch.totalFlow > 0 ? formatNum(branch.totalFlow, 3) : '-'}
                               </td>
-                              <td className="px-4 py-2 text-center font-medium text-slate-700">{formatNum(branch.reqWaterLevel)}</td>
+                              <td className="px-4 py-2 text-center font-medium text-slate-700">{branch.reqWaterLevel > 0 ? formatNum(branch.reqWaterLevel) : '-'}</td>
                             </tr>
                           ))
                         ) : (
@@ -1455,7 +1498,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         }
 
                         const isFirstRow = index === 0;
-                        const isSelected = segmentBreakpoints.includes(index);
+                        const isSelected = segmentBreakpoints.includes(node.id);
 
                         return (
                           <tr 
@@ -1467,10 +1510,10 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                             onClick={() => {
                               if (!isFirstRow) {
                                 setSegmentBreakpoints(prev => {
-                                  if (prev.includes(index)) {
-                                    return prev.filter(i => i !== index).sort((a, b) => a - b);
+                                  if (prev.includes(node.id)) {
+                                    return prev.filter(id => id !== node.id);
                                   }
-                                  return [...prev, index].sort((a, b) => a - b);
+                                  return [...prev, node.id];
                                 });
                               }
                             }}
@@ -1479,7 +1522,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                             <td className="px-4 py-2 font-medium text-slate-700">{congTrinh}</td>
                             <td className="px-4 py-2 text-right text-slate-700">{formatNum(node.chainage)}</td>
                             <td className="px-4 py-2 text-right font-medium text-blue-600">
-                              {formatNum(node.q_truoc, 3)}
+                              {formatNum(node.q_sau, 3)}
                             </td>
                           </tr>
                         );
@@ -1540,17 +1583,17 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         const endKText = endNode ? formatChainageToK(endNode.chainage) : 'K...';
                         const length = endNode ? (endNode.chainage - startNode.chainage) : null;
                         const lengthText = length !== null ? formatNum(length) : 'xx';
-                        const thietKeFlowText = formatNum(startNode.q_truoc, 3);
+                        const thietKeFlowText = formatNum(startNode.q_sau, 3);
                         
-                        const kMax = getKMaxCoefficient(startNode.q_truoc);
-                        const lonNhatFlowText = formatNum(startNode.q_truoc * kMax, 3);
+                        const kMax = getKMaxCoefficient(startNode.q_sau);
+                        const lonNhatFlowText = formatNum(startNode.q_sau * kMax, 3);
 
                         const res = segmentHydraulicResults[segIdx];
 
                         return (
                           <React.Fragment key={segIdx}>
                             {['Lớn nhất', 'Thiết kế', 'Nhỏ nhất'].map((truongHop, rowIdx) => {
-                              const flowText = truongHop === 'Thiết kế' ? thietKeFlowText : truongHop === 'Lớn nhất' ? lonNhatFlowText : formatNum(startNode.q_truoc * (parseFloat(kminCoef) || 0.8), 3);
+                              const flowText = truongHop === 'Thiết kế' ? thietKeFlowText : truongHop === 'Lớn nhất' ? lonNhatFlowText : formatNum(startNode.q_sau * (parseFloat(kminCoef) || 0.8), 3);
                               let hText = '-';
                               let vText = '-';
                               if (res) {
@@ -2151,7 +2194,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                     const endViTri = formatChainageToK(endNode?.chainage || 0);
                     const chieuDaiRaw = (endNode?.chainage || 0) - (startNode.chainage || 0);
                     const chieuDai = chieuDaiRaw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
-                    const q_val = formatNum(startNode.q_truoc, 3);
+                    const q_val = formatNum(startNode.q_sau, 3);
                     const i_str = isDesigned ? (res?.i || '0.0003') : '-';
                     const m_str = isDesigned ? (res?.m || '0') : '-';
                     const n_str = isDesigned ? (res?.n || '0.017') : '-';
@@ -2213,7 +2256,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         safeHeightVal = Number(String(res.safeHeight).replace(',', '.'));
                         if (isNaN(safeHeightVal)) safeHeightVal = 0;
                       } else {
-                        safeHeightVal = Number(calculateSafeHeight(startNode.q_truoc, res?.crossSectionType as any)) || 0;
+                        safeHeightVal = Number(calculateSafeHeight(startNode.q_sau, res?.crossSectionType as any)) || 0;
                       }
                       
                       const h_max_val = !isNaN(Number(res?.h_max)) ? Number(res?.h_max) : 0;
@@ -2257,6 +2300,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
 
                       const dataRow = (
                         <tr 
+                          id={`row-${node.chainage}`}
                           key={`data-${segIdx}-${index}`} 
                           className={`hover:bg-slate-100 transition-colors cursor-pointer text-[13px] ${focusedChainage === node.chainage ? 'bg-blue-50/50' : ''}`}
                           onClick={() => setFocusedChainage(node.chainage || 0)}
@@ -2353,6 +2397,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         if (id) {
                           const struct = canalStructures.find(s => s.id === id);
                           if (struct) {
+                            setFocusedChainage(Number(struct.chainage) || 0);
                             setInlineStructureTypeInput(struct.type || '');
                             setInlineStructureNameInput(struct.name || '');
                             setStartChainageInput(struct.chainage || '');
@@ -2364,6 +2409,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                             setShowInlineLossDetails(false);
                           }
                         } else {
+                          setFocusedChainage(null);
                           setInlineStructureTypeInput('');
                           setInlineStructureNameInput('');
                           setStartChainageInput('');
@@ -2377,7 +2423,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                       }}
                     >
                       <option value="">Công trình trên kênh</option>
-                      {canalStructures.filter(s => s.type === 'inline_structure').map(s => (
+                      {[...canalStructures].filter(s => s.type === 'inline_structure').sort((a, b) => (Number(a.chainage) || 0) - (Number(b.chainage) || 0)).map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
                     </select>
@@ -2686,7 +2732,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-slate-500">
               <i className="bi bi-share text-4xl mb-4 text-slate-300 block"></i>
-              <p className="text-lg font-medium">Không gian làm việc: Kênh nhánh</p>
+              <p className="text-lg font-medium">Không gian làm việc: Xuất bản vẽ</p>
             </div>
           </div>
         )}
@@ -2720,7 +2766,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                   }}
                 >
                   <option value="">Thông số kênh nhánh</option>
-                  {canalStructures.map(s => (
+                  {[...canalStructures].sort((a, b) => (Number(a.chainage) || 0) - (Number(b.chainage) || 0)).map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
@@ -2757,6 +2803,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         type: 'offtake_irrigation', // Cống lấy nước
                         chainage: chainageInput,
                         length: parseFloat(canalLengthInput) || 0,
+                        flowCalcMethod: flowCalcMethodInput,
+                        reqFlow: parseFloat(reqFlowInput) || 0,
                         riceArea: parseFloat(riceAreaInput) || 0,
                         fruitArea: parseFloat(fruitAreaInput) || 0,
                         permeability: permeabilityInput,
@@ -2809,6 +2857,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           type: 'offtake_irrigation',
                           chainage: chainageInput,
                           length: parseFloat(canalLengthInput) || 0,
+                          flowCalcMethod: flowCalcMethodInput,
+                          reqFlow: parseFloat(reqFlowInput) || 0,
                           riceArea: parseFloat(riceAreaInput) || 0,
                           fruitArea: parseFloat(fruitAreaInput) || 0,
                           permeability: permeabilityInput,
@@ -2882,6 +2932,29 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
 
             {/* Group 2: Nhu cầu nước */}
             <PropertyGroup title="Nhu cầu nước">
+              <PropertyRow label="Phương pháp tính">
+                <div className="flex w-full items-center gap-3 px-2 py-1 text-[11px] text-slate-700">
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name="flowCalcMethodInput" value="tinh_toan" checked={flowCalcMethodInput === 'tinh_toan'} onChange={(e) => setFlowCalcMethodInput(e.target.value)} className="w-3 h-3 text-blue-600 focus:ring-0" />
+                    Tính toán
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name="flowCalcMethodInput" value="nhap_gia_tri" checked={flowCalcMethodInput === 'nhap_gia_tri'} onChange={(e) => setFlowCalcMethodInput(e.target.value)} className="w-3 h-3 text-blue-600 focus:ring-0" />
+                    Nhập giá trị
+                  </label>
+                </div>
+              </PropertyRow>
+              {flowCalcMethodInput === 'nhap_gia_tri' && (
+                <PropertyRow label="Lưu lượng nhánh (m3/s)">
+                  <input 
+                    type="number" 
+                    step="any" 
+                    className="w-full px-2 py-1 text-[11px] outline-none text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                    value={reqFlowInput}
+                    onChange={(e) => setReqFlowInput(e.target.value)}
+                  />
+                </PropertyRow>
+              )}
               {project?.irrigationCoefficient && (
                 (() => {
                   try {
@@ -2899,9 +2972,10 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           <input 
                             type="number" 
                             step="any" 
-                            className="w-full px-2 py-1 text-[11px] outline-none text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                             value={index === 0 ? riceAreaInput : fruitAreaInput}
                             onChange={e => index === 0 ? setRiceAreaInput(e.target.value) : setFruitAreaInput(e.target.value)}
+                            disabled={flowCalcMethodInput === 'nhap_gia_tri'}
+                            className={`w-full px-2 py-1 text-[11px] outline-none text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${flowCalcMethodInput === 'nhap_gia_tri' ? 'bg-slate-100 text-slate-400' : ''}`}
                           />
                           {crop.coef !== undefined && (
                             <span className="text-[10px] text-slate-500 pr-2 whitespace-nowrap shrink-0 font-medium select-none cursor-default" title="Hệ số tưới">
@@ -2919,9 +2993,9 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
               
               <PropertyRow label="Mức độ thấm">
                 <select 
-                  className="w-full pl-2 pr-6 py-1 text-[11px] outline-none bg-white text-black border-none focus:ring-0"
+                  className={`w-full pl-2 pr-6 py-1 text-[11px] outline-none border-none focus:ring-0 ${flowCalcMethodInput === 'nhap_gia_tri' ? 'bg-slate-100 text-slate-400' : 'bg-white text-black'}`}
                   value={permeabilityInput}
-                  onChange={e => setPermeabilityInput(e.target.value)}
+                  onChange={e => setPermeabilityInput(e.target.value)} disabled={flowCalcMethodInput === 'nhap_gia_tri'}
                 >
                   {permeabilityBranchOptions.length > 0 ? (
                       permeabilityBranchOptions.map(opt => (
