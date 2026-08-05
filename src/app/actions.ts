@@ -693,6 +693,9 @@ export async function saveCanalStructures(projectId: string, structures: any[]) 
           reqWaterLevel: s.reqWaterLevel,
           endChainage: s.endChainage,
           headLoss: s.headLoss,
+          inletLoss: s.inletLoss,
+          outletLoss: s.outletLoss,
+          frictionLoss: s.frictionLoss,
           offtakeSide: s.offtakeSide,
           offtakeSize: s.offtakeSize,
           offtakeStatus: s.offtakeStatus,
@@ -717,5 +720,54 @@ export async function getCanalStructures(projectId: string) {
   } catch (error) {
     console.error("Get canal structures error:", error)
     return []
+  }
+}
+
+export async function getTerrainData(projectId: string) {
+  try {
+    const data = await (prisma as any).terrainData.findMany({
+      where: { projectId },
+      orderBy: { lyTrinh: 'asc' }
+    });
+    return data;
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu địa hình:', error);
+    return [];
+  }
+}
+
+export async function saveTerrainData(projectId: string, data: any[]) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Xoá dữ liệu cũ
+      await (tx as any).terrainData.deleteMany({
+        where: { projectId }
+      });
+      
+      if (data && data.length > 0) {
+        // Thêm dữ liệu mới
+        const CHUNK_SIZE = 100; // Force Turbopack rebuild
+        const mappedData = data.map(item => ({
+          projectId,
+          tenMoc: item.tenMoc !== undefined && item.tenMoc !== null ? String(item.tenMoc) : '',
+          lyTrinh: parseFloat(item.lyTrinh) || 0,
+          khoangCach: parseFloat(item.khoangCach) || 0,
+          caoDo: parseFloat(item.caoDo) || 0
+        }));
+        
+        for (let i = 0; i < mappedData.length; i += CHUNK_SIZE) {
+          const chunk = mappedData.slice(i, i + CHUNK_SIZE);
+          await (tx as any).terrainData.createMany({
+            data: chunk
+          });
+        }
+      }
+    });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Lỗi khi lưu dữ liệu địa hình:', error);
+    require('fs').writeFileSync('terrain_error.log', String(error) + '\n' + (error.stack || ''));
+    return { success: false, error: String(error) };
   }
 }

@@ -5,7 +5,9 @@ import { ModernStepper, ModernStepItem } from './ModernStepper';
 import FullWidthTable from './FullWidthTable';
 import { calculateEfficiencyCoefficient, calculateSafeHeight, solveForH, solveForB, solveForHandB, getKMaxCoefficient } from '@/lib/calculations';
 import * as XLSX from 'xlsx';
-import { saveLandmarkCoordinates, getLandmarkCoordinates, saveCanalStructures, getCanalStructures, getCategoriesByGroupName, saveProjectDesignConfig } from '@/app/actions';
+import { saveLandmarkCoordinates, getLandmarkCoordinates, saveCanalStructures,
+  getTerrainData,
+  saveTerrainData, getCanalStructures, getCategoriesByGroupName, saveProjectDesignConfig } from '@/app/actions';
 import { StructureIcon, StructureStatus } from './icons/StructureIcon';
 import { toast } from 'react-hot-toast';
 import Toolbar from './Toolbar';
@@ -65,6 +67,10 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const [inlineStructureTypeInput, setInlineStructureTypeInput] = useState<string>('');
   const [inlineStructureNameInput, setInlineStructureNameInput] = useState<string>('');
   const [inlineStructureLossInput, setInlineStructureLossInput] = useState<string>('');
+  const [showInlineLossDetails, setShowInlineLossDetails] = useState(false);
+  const [inlineInletLoss, setInlineInletLoss] = useState<string>('');
+  const [inlineOutletLoss, setInlineOutletLoss] = useState<string>('');
+  const [inlineFrictionLoss, setInlineFrictionLoss] = useState<string>('');
   const [selectedInlineStructureId, setSelectedInlineStructureId] = useState<string>('');
 
   const [landmarkX, setLandmarkX] = useState<number | ''>('');
@@ -135,7 +141,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const [canalStructures, setCanalStructures] = useState<{ 
     id: string, name: string, x: number, y: number, angle: number, status: StructureStatus, type: any,
     chainage?: string, length?: number, riceArea?: number, fruitArea?: number, permeability?: string, reqWaterLevel?: number, offtakeSide?: string, offtakeSize?: number, offtakeStatus?: string,
-    inlineStructureType?: string, endChainage?: string, headLoss?: number
+    inlineStructureType?: string, endChainage?: string, headLoss?: number, inletLoss?: number, outletLoss?: number, frictionLoss?: number
   }[]>([]);
   const [selectedStructureId, setSelectedStructureId] = useState('');
   const [isTerrainDataOpen, setIsTerrainDataOpen] = useState(false);
@@ -239,8 +245,12 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
           getCanalStructures(project.id),
           getCategoriesByGroupName("Độ thấm kênh nhánh"),
           getCategoriesByGroupName("Độ thấm kênh chính"),
-          getCategoriesByGroupName("Loại công trình trên kênh")
-        ]).then(([coords, structures, branchPermCats, mainPermCats, structureCats]) => {
+          getCategoriesByGroupName("Loại công trình trên kênh"),
+          getTerrainData(project.id)
+        ]).then(([coords, structures, branchPermCats, mainPermCats, structureCats, terrainRows]) => {
+          if (terrainRows && terrainRows.length > 0) {
+            setTerrainData(terrainRows);
+          }
           if (coords && coords.length > 0) {
             setImportedPoints(coords);
             setViewTransform({ zoom: 1, x: 0, y: 0 });
@@ -278,6 +288,9 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
               if (config.crossSectionType !== undefined) setCrossSectionType(config.crossSectionType);
               if (config.kminCoef !== undefined) setKminCoef(config.kminCoef);
               if (config.segmentHydraulicResults !== undefined) setSegmentHydraulicResults(config.segmentHydraulicResults);
+              if (config.controlElevationType !== undefined) setControlElevationType(config.controlElevationType);
+              if (config.controlElevationValue !== undefined) setControlElevationValue(config.controlElevationValue);
+              if (config.maintainWaterLevel !== undefined) setMaintainWaterLevel(config.maintainWaterLevel);
             } catch (e) {
               console.error("Failed to parse design config", e);
             }
@@ -295,6 +308,65 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const handleSaveProject = async () => {
     if (!project?.id) return;
     setIsSaving(true);
+    const calculatedElevations = computedSegments.map((seg, segIdx) => {
+      const res = segmentHydraulicResults[segIdx];
+      const isDesigned = res !== undefined;
+      const nodes = [];
+      const endNodeIdx = seg.endIdx !== null && seg.endIdx < flowNodesData.flowNodes.length ? seg.endIdx : flowNodesData.flowNodes.length - 1;
+      
+      for (let index = seg.startIdx; index <= endNodeIdx; index++) {
+        const node = flowNodesData.flowNodes[index];
+        const dayVal = nodeElevations[segIdx]?.[index];
+        const htkVal = dayVal !== null && dayVal !== undefined && isDesigned && res.h_des ? dayVal + Number(res.h_des) : null;
+        
+        let safeHeightVal = 0;
+        if (res && res.safeHeight) {
+          safeHeightVal = Number(String(res.safeHeight).replace(',', '.'));
+          if (isNaN(safeHeightVal)) safeHeightVal = 0;
+        } else {
+          // Approximate safe height if not found
+          safeHeightVal = 0;
+        }
+        const h_max_val = !isNaN(Number(res?.h_max)) ? Number(res?.h_max) : 0;
+        const dinhKenhVal = dayVal !== null && dayVal !== undefined && isDesigned ? dayVal + h_max_val + safeHeightVal : null;
+
+        let terrainVal = null;
+        if (terrainData && terrainData.length > 0) {
+          const chainage = node.chainage || 0;
+          const exactMatch = terrainData.find(t => Math.abs(Number(t.lyTrinh) - chainage) < 0.1);
+          if (exactMatch) {
+            terrainVal = Number(exactMatch.caoDo);
+          } else {
+            const sortedData = [...terrainData].sort((a, b) => Number(a.lyTrinh) - Number(b.lyTrinh));
+            let prev = null;
+            let next = null;
+            for (let i = 0; i < sortedData.length; i++) {
+              const tChainage = Number(sortedData[i].lyTrinh);
+              if (tChainage <= chainage) prev = sortedData[i];
+              if (tChainage >= chainage && !next) next = sortedData[i];
+            }
+            if (prev && next && Number(prev.lyTrinh) !== Number(next.lyTrinh)) {
+              terrainVal = Number(prev.caoDo) + ((chainage - Number(prev.lyTrinh)) / (Number(next.lyTrinh) - Number(prev.lyTrinh))) * (Number(next.caoDo) - Number(prev.caoDo));
+            } else if (prev) {
+              terrainVal = Number(prev.caoDo);
+            } else if (next) {
+              terrainVal = Number(next.caoDo);
+            }
+          }
+        }
+        
+        nodes.push({
+          nodeId: node.id,
+          chainage: node.chainage,
+          dayKenh: dayVal,
+          htk: htkVal,
+          dinhKenh: dinhKenhVal,
+          matDat: terrainVal
+        });
+      }
+      return { segIdx, nodes };
+    });
+
     const configData = {
       sourceFlow,
       reinforcementFactor,
@@ -308,7 +380,11 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
       calcProblem,
       crossSectionType,
       kminCoef,
-      segmentHydraulicResults
+      segmentHydraulicResults,
+      calculatedElevations,
+      controlElevationType,
+      controlElevationValue,
+      maintainWaterLevel
     };
 
     const [resLandmark, resCanal, resConfig] = await Promise.all([
@@ -358,6 +434,17 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
       setReqWaterLevelInput(String(Math.round(computed * 100) / 100));
     }
   }, [calcElevation, calcDepth, calcSlope, calcLoss, canalLengthInput, showWaterLevelCalc]);
+
+  useEffect(() => {
+    if (showInlineLossDetails) {
+      const v1 = parseFloat(inlineInletLoss) || 0;
+      const v2 = parseFloat(inlineOutletLoss) || 0;
+      const v3 = parseFloat(inlineFrictionLoss) || 0;
+      if (inlineInletLoss !== '' || inlineOutletLoss !== '' || inlineFrictionLoss !== '') {
+        setInlineStructureLossInput(String(Math.round((v1 + v2 + v3) * 100) / 100));
+      }
+    }
+  }, [inlineInletLoss, inlineOutletLoss, inlineFrictionLoss, showInlineLossDetails]);
 
   const calculateStructurePosition = () => {
     const parsed = parseFloat(chainageInput.replace(/[^\d.]/g, ''));
@@ -2034,7 +2121,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                       <th rowSpan={2} className="px-3 py-2 border-r border-slate-200 bg-[#fafafa] align-middle">Lý trình</th>
                       <th colSpan={2} className="px-3 py-2 border-r border-slate-200 border-b border-slate-200 bg-[#fafafa]">Tổn thất (m)</th>
                       <th colSpan={3} className="px-3 py-2 border-r border-slate-200 border-b border-slate-200 bg-[#fafafa]">Cột nước (m)</th>
-                      <th colSpan={4} className="px-3 py-2 border-r border-slate-200 border-b border-slate-200 bg-[#fafafa]">Cao độ</th>
+                      <th colSpan={5} className="px-3 py-2 border-r border-slate-200 border-b border-slate-200 bg-[#fafafa]">Cao độ</th>
                       <th rowSpan={2} className="px-3 py-2 bg-[#fafafa] align-middle min-w-[120px]">Ghi chú</th>
                     </tr>
                     <tr className="uppercase text-[10px] tracking-wider font-bold text-center">
@@ -2043,6 +2130,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                       <th className="px-3 py-2 border-r border-slate-200 bg-[#fafafa]">Lớn nhất</th>
                       <th className="px-3 py-2 border-r border-slate-200 bg-[#fafafa]">Thiết kế</th>
                       <th className="px-3 py-2 border-r border-slate-200 bg-[#fafafa]">Nhỏ nhất</th>
+                      <th className="px-3 py-2 border-r border-slate-200 bg-[#fafafa]">Mặt đất</th>
                       <th className="px-3 py-2 border-r border-slate-200 bg-[#fafafa]">Đáy kênh</th>
                       <th className="px-3 py-2 border-r border-slate-200 bg-[#fafafa]">Htk</th>
                       <th className="px-3 py-2 border-r border-slate-200 bg-[#fafafa]">Đỉnh kênh</th>
@@ -2076,7 +2164,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
 
                     const segmentHeaderRow = (
                         <tr key={`header-${segIdx}`} className="bg-slate-100/80 hover:bg-slate-200/60 transition-colors cursor-pointer border-b border-t border-slate-200 shadow-sm" onClick={() => toggleSegment(segIdx)}>
-                          <td colSpan={13} className="px-3 py-2 text-left font-semibold text-slate-700">
+                          <td colSpan={14} className="px-3 py-2 text-left font-semibold text-slate-700">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {isCollapsed ? <ChevronRight size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
                               <span>Đoạn {segIdx + 1}</span>
@@ -2133,6 +2221,38 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                       
                       const yeuCauStr = node.type === 'branch' && node.reqWaterLevel ? node.reqWaterLevel.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '') : '-';
                       
+                      // Find terrain elevation for this chainage
+                      let terrainElevationStr = '-';
+                      if (terrainData && terrainData.length > 0) {
+                        const chainage = node.chainage || 0;
+                        const exactMatch = terrainData.find(t => Math.abs(Number(t.lyTrinh) - chainage) < 0.1);
+                        if (exactMatch) {
+                          terrainElevationStr = Number(exactMatch.caoDo).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                        } else {
+                          const sortedData = [...terrainData].sort((a, b) => Number(a.lyTrinh) - Number(b.lyTrinh));
+                          let prev = null;
+                          let next = null;
+                          for (let i = 0; i < sortedData.length; i++) {
+                            const tChainage = Number(sortedData[i].lyTrinh);
+                            if (tChainage <= chainage) prev = sortedData[i];
+                            if (tChainage >= chainage && !next) next = sortedData[i];
+                          }
+                          if (prev && next && Number(prev.lyTrinh) !== Number(next.lyTrinh)) {
+                            const lyTrinhPrev = Number(prev.lyTrinh);
+                            const lyTrinhNext = Number(next.lyTrinh);
+                            const caoDoPrev = Number(prev.caoDo);
+                            const caoDoNext = Number(next.caoDo);
+                            const ratio = (chainage - lyTrinhPrev) / (lyTrinhNext - lyTrinhPrev);
+                            const interpolated = caoDoPrev + ratio * (caoDoNext - caoDoPrev);
+                            terrainElevationStr = interpolated.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                          } else if (prev) {
+                            terrainElevationStr = Number(prev.caoDo).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                          } else if (next) {
+                            terrainElevationStr = Number(next.caoDo).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                          }
+                        }
+                      }
+                      
                       const isFirstNode = segIdx === 0 && index === 0;
 
                       const dataRow = (
@@ -2145,10 +2265,13 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           <td className="px-3 py-1.5 text-center text-slate-700 border-r border-slate-100">{congTrinh}</td>
                           <td className="px-3 py-1.5 text-center text-slate-500 border-r border-slate-100">{chainageDisplay}</td>
                           <td className="px-3 py-1.5 text-center text-slate-300 border-r border-slate-100">-</td>
-                          <td className={`px-3 py-1.5 text-center border-r border-slate-100 ${node.loss > 0 ? 'text-slate-700 font-medium' : 'text-slate-300'}`}>{node.loss > 0 ? Number(node.loss).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                          <td className={`px-3 py-1.5 text-center border-r border-slate-100 ${(node.headLoss || 0) > 0 ? 'text-slate-700 font-medium' : 'text-slate-300'}`}>{(node.headLoss || 0) > 0 ? Number(node.headLoss).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
                           <td className={`px-3 py-1.5 text-center border-r border-slate-100 ${isDesigned ? 'text-slate-700' : 'text-slate-300'}`}>{h_max}</td>
                           <td className={`px-3 py-1.5 text-center border-r border-slate-100 ${isDesigned ? 'text-slate-700 font-medium' : 'text-slate-300'}`}>{h_des}</td>
                           <td className={`px-3 py-1.5 text-center border-r border-slate-100 ${isDesigned ? 'text-slate-700' : 'text-slate-300'}`}>{h_min}</td>
+                          <td className={`px-3 py-1.5 text-center border-r border-slate-100 ${terrainElevationStr !== '-' ? 'text-slate-700 font-medium' : 'text-slate-300'}`}>
+                            {terrainElevationStr}
+                          </td>
                           <td className={`px-3 py-1.5 text-center border-r border-slate-100 ${isFirstNode && controlElevationType === 'day' && controlElevationValue ? 'font-bold text-red-600' : (dayStr !== '-' ? 'text-slate-700' : 'text-slate-300')}`}>
                             {dayStr}
                           </td>
@@ -2178,9 +2301,9 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         
                         nodeElements.push(
                           <tr key={`empty-${segIdx}-${index}`} className="bg-slate-50/40">
-                            {Array.from({ length: 13 }).map((_, i) => {
+                            {Array.from({ length: 14 }).map((_, i) => {
                               let cellContent: React.ReactNode = '-';
-                              let className = `px-3 py-1.5 text-center ${i < 12 ? 'border-r border-slate-100' : ''}`;
+                              let className = `px-3 py-1.5 text-center ${i < 13 ? 'border-r border-slate-100' : ''}`;
                               if (i === 3) {
                                  cellContent = hFriction;
                                  className += (hFriction !== '-' ? ' text-slate-500 font-medium' : ' text-transparent');
@@ -2235,6 +2358,10 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                             setStartChainageInput(struct.chainage || '');
                             setEndChainageInput(struct.endChainage || '');
                             setInlineStructureLossInput(struct.headLoss?.toString() || '');
+                            setInlineInletLoss(struct.inletLoss?.toString() || '');
+                            setInlineOutletLoss(struct.outletLoss?.toString() || '');
+                            setInlineFrictionLoss(struct.frictionLoss?.toString() || '');
+                            setShowInlineLossDetails(false);
                           }
                         } else {
                           setInlineStructureTypeInput('');
@@ -2242,6 +2369,10 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           setStartChainageInput('');
                           setEndChainageInput('');
                           setInlineStructureLossInput('');
+                          setInlineInletLoss('');
+                          setInlineOutletLoss('');
+                          setInlineFrictionLoss('');
+                          setShowInlineLossDetails(false);
                         }
                       }}
                     >
@@ -2331,19 +2462,32 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
               >
                 <PropertyGroup title="Thông tin công trình">
                   <PropertyRow label="Loại">
-                    <select 
-                      className="w-full px-2 py-1 text-[11px] outline-none text-black bg-white"
-                      value={inlineStructureTypeInput}
-                      onChange={(e) => setInlineStructureTypeInput(e.target.value)}
-                    >
-                      <option value="">Chọn loại</option>
-                      <option value="Cầu máng">Cầu máng</option>
-                      <option value="Cống điều tiết">Cống điều tiết</option>
-                      <option value="Cống qua đường">Cống qua đường</option>
-                      <option value="Xi phông">Xi phông</option>
-                      <option value="Bậc nước">Bậc nước</option>
-                      <option value="Dốc nước">Dốc nước</option>
-                    </select>
+                                          <select 
+                        className="w-full px-2 py-1 text-[11px] outline-none text-black bg-white"
+                        value={inlineStructureTypeInput}
+                        onChange={(e) => setInlineStructureTypeInput(e.target.value)}
+                      >
+                        <option value="">Chọn loại</option>
+                        {canalStructureTypes.filter(c => !c.parentId).map(parent => {
+                          const children = canalStructureTypes.filter(c => c.parentId === parent.id);
+                          if (children.length > 0) {
+                            return (
+                              <optgroup key={parent.id} label={parent.name.toUpperCase()} className="font-semibold">
+                                {children.map(child => (
+                                  <option key={child.id} value={child.name}>
+                                    {child.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            );
+                          }
+                          return (
+                            <option key={parent.id} value={parent.name}>
+                              {parent.name}
+                            </option>
+                          );
+                        })}
+                      </select>
                   </PropertyRow>
                   <PropertyRow label="Tên công trình">
                     <input 
@@ -2376,15 +2520,21 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                     <div className="flex items-center w-full bg-white">
                       <input 
                         type="text" 
-                        className="flex-1 px-2 py-1 text-[11px] outline-none text-black bg-white" 
+                        className={`flex-1 px-2 py-1 text-[11px] outline-none ${!['Cầu máng', 'Xi phông', 'Dốc nước'].includes(inlineStructureTypeInput) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'text-black bg-white'}`} 
                         placeholder="K0+000" 
                         value={endChainageInput}
                         onChange={(e) => setEndChainageInput(e.target.value)}
+                        disabled={!['Cầu máng', 'Xi phông', 'Dốc nước'].includes(inlineStructureTypeInput)}
                       />
                       <button 
-                        className={`px-1.5 py-1 transition-colors border-l border-slate-200 ${pickingChainageTarget === 'end' ? 'text-blue-600 bg-blue-50' : 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'}`}
+                        className={`px-1.5 py-1 transition-colors border-l border-slate-200 ${!['Cầu máng', 'Xi phông', 'Dốc nước'].includes(inlineStructureTypeInput) ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : pickingChainageTarget === 'end' ? 'text-blue-600 bg-blue-50' : 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'}`}
                         title="Pick điểm trên biểu đồ"
-                        onClick={() => setPickingChainageTarget(pickingChainageTarget === 'end' ? null : 'end')}
+                        onClick={() => {
+                          if (['Cầu máng', 'Xi phông', 'Dốc nước'].includes(inlineStructureTypeInput)) {
+                            setPickingChainageTarget(pickingChainageTarget === 'end' ? null : 'end');
+                          }
+                        }}
+                        disabled={!['Cầu máng', 'Xi phông', 'Dốc nước'].includes(inlineStructureTypeInput)}
                       >
                         <i className="bi bi-geo-alt"></i>
                       </button>
@@ -2399,11 +2549,46 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         value={inlineStructureLossInput}
                         onChange={(e) => setInlineStructureLossInput(e.target.value)}
                       />
-                      <button className="px-1.5 py-1 text-slate-500 hover:text-blue-600 hover:bg-slate-100 border-l border-slate-200" title="Tính toán">
+                      <button 
+                        className={`px-1.5 py-1 border-l border-slate-200 ${showInlineLossDetails ? 'bg-slate-200 text-slate-700' : 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'}`} 
+                        title="Tính toán chi tiết"
+                        onClick={() => setShowInlineLossDetails(!showInlineLossDetails)}
+                      >
                         <Calculator size={14} />
                       </button>
                     </div>
                   </PropertyRow>
+                  {showInlineLossDetails && (
+                    <>
+                      <PropertyRow label="Tổn thất cửa vào (m)">
+                        <input 
+                          type="number" 
+                          className="w-full px-2 py-1 text-[11px] outline-none text-black bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                          placeholder="0.00" 
+                          value={inlineInletLoss}
+                          onChange={(e) => setInlineInletLoss(e.target.value)}
+                        />
+                      </PropertyRow>
+                      <PropertyRow label="Tổn thất cửa ra (m)">
+                        <input 
+                          type="number" 
+                          className="w-full px-2 py-1 text-[11px] outline-none text-black bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                          placeholder="0.00" 
+                          value={inlineOutletLoss}
+                          onChange={(e) => setInlineOutletLoss(e.target.value)}
+                        />
+                      </PropertyRow>
+                      <PropertyRow label="Tổn thất dọc đường (m)">
+                        <input 
+                          type="number" 
+                          className="w-full px-2 py-1 text-[11px] outline-none text-black bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                          placeholder="0.00" 
+                          value={inlineFrictionLoss}
+                          onChange={(e) => setInlineFrictionLoss(e.target.value)}
+                        />
+                      </PropertyRow>
+                    </>
+                  )}
                 </PropertyGroup>
               </PropertiesPanel>
 
@@ -2891,10 +3076,19 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
 
         <TerrainDataOffcanvas 
           isOpen={isTerrainDataOpen} 
+          initialData={terrainData}
           onClose={() => setIsTerrainDataOpen(false)} 
-          onUpdate={(data) => {
+          onUpdate={async (data) => {
             setTerrainData(data);
             setIsTerrainDataOpen(false);
+            if (project?.id) {
+              const res = await saveTerrainData(project.id, data);
+              if (res.success) {
+                toast.success('Đã lưu dữ liệu địa hình thành công');
+              } else {
+                toast.error('Lỗi khi lưu dữ liệu địa hình');
+              }
+            }
           }}
         />
       </div>

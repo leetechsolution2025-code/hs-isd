@@ -7,15 +7,23 @@ interface TerrainDataOffcanvasProps {
   isOpen: boolean
   onClose: () => void
   onUpdate?: (data: any[]) => void
+  initialData?: any[]
 }
 
 export default function TerrainDataOffcanvas({
   isOpen,
   onClose,
-  onUpdate
+  onUpdate,
+  initialData = []
 }: TerrainDataOffcanvasProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [terrainData, setTerrainData] = useState<any[]>([]);
+  const [terrainData, setTerrainData] = useState<any[]>(initialData);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setTerrainData(initialData);
+    }
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
@@ -96,7 +104,7 @@ export default function TerrainDataOffcanvas({
         onClick={onClose}
       />
       
-      <div className={`fixed top-0 right-0 bottom-0 w-[450px] bg-white z-[4001] shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed top-0 right-0 bottom-0 w-[400px] bg-white z-[4001] shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-bold text-lg text-slate-800">Dữ liệu địa hình</h2>
