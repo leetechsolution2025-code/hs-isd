@@ -687,6 +687,8 @@ export async function saveCanalStructures(projectId: string, structures: any[]) 
           angle: s.angle,
           chainage: s.chainage,
           length: s.length,
+          flowCalcMethod: s.flowCalcMethod,
+          reqFlow: s.reqFlow,
           riceArea: s.riceArea,
           fruitArea: s.fruitArea,
           permeability: s.permeability,

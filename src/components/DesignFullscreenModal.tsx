@@ -7,7 +7,7 @@ import { calculateEfficiencyCoefficient, calculateSafeHeight, solveForH, solveFo
 import * as XLSX from 'xlsx';
 import { saveLandmarkCoordinates, getLandmarkCoordinates, saveCanalStructures,
   getTerrainData,
-  saveTerrainData, getCanalStructures, getCategoriesByGroupName, saveProjectDesignConfig } from '@/app/actions';
+  saveTerrainData, getCanalStructures, getCategoriesByGroupName, saveProjectDesignConfig, getCompanyInfo } from '@/app/actions';
 import { StructureIcon, StructureStatus } from './icons/StructureIcon';
 import { toast } from 'react-hot-toast';
 import Toolbar from './Toolbar';
@@ -26,9 +26,9 @@ interface DesignFullscreenModalProps {
 const designSteps: ModernStepItem[] = [
   { num: 1, id: "diagram", title: "Sơ đồ hệ thống", desc: "Mạng lưới thuỷ lợi", icon: "bi-diagram-3" },
   { num: 2, id: "flow", title: "Tính lưu lượng", desc: "Lưu lượng thiết kế", icon: "bi-water" },
-  { num: 3, id: "cross-section", title: "Mặt cắt ngang", desc: "Mặt cắt ngang", icon: "bi-arrows-collapse" },
-  { num: 4, id: "long-profile", title: "Cắt dọc", desc: "Mặt cắt dọc", icon: "bi-bar-chart-steps" },
-  { num: 5, id: "branch", title: "Xuất bản vẽ", desc: "Thiết kế tuyến kênh", icon: "bi-share" },
+  { num: 3, id: "cross-section", title: "Phân đoạn cắt ngang", desc: "Mặt cắt ngang", icon: "bi-arrows-collapse" },
+  { num: 4, id: "long-profile", title: "Đường mực nước", desc: "Mặt cắt dọc", icon: "bi-bar-chart-steps" },
+  { num: 5, id: "branch", title: "Lập hồ sơ thiết kế", desc: "Thiết kế tuyến kênh", icon: "bi-share" },
   { num: 6, id: "headworks", title: "Cống đầu kênh nhánh", desc: "Công trình điều tiết", icon: "bi-building" },
 ];
 
@@ -44,9 +44,20 @@ const formatNum = (val: any, decimals?: number) => {
 
 export default function DesignFullscreenModal({ isOpen, onClose, project, onSuccess }: DesignFullscreenModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [activeDocTab, setActiveDocTab] = useState<'thuyet_minh' | 'phu_luc' | 'longitudinal' | 'cross-section'>('thuyet_minh');
   const [landmarkName, setLandmarkName] = useState("S1");
   const [isPropertiesExpanded, setIsPropertiesExpanded] = useState(false);
   const [isLongitudinalPanelExpanded, setIsLongitudinalPanelExpanded] = useState(false);
+  const [isCrossSectionPanelExpanded, setIsCrossSectionPanelExpanded] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+
+  useEffect(() => {
+    if (activeDocTab === 'thuyet_minh' && !companyInfo) {
+      getCompanyInfo().then(res => {
+        if (res) setCompanyInfo(res);
+      }).catch(err => console.error(err));
+    }
+  }, [activeDocTab, companyInfo]);
   const [isLongitudinalPanelFullscreen, setIsLongitudinalPanelFullscreen] = useState(false);
   const [collapsedSegments, setCollapsedSegments] = useState<Record<number, boolean>>({});
   const [focusedChainage, setFocusedChainage] = useState<number | null>(null);
@@ -238,6 +249,140 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleBranchExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (importedPoints.length < 2) {
+      toast.error("Vui lòng tải toạ độ mặt bằng (2 điểm trở lên) trước khi nhập dữ liệu.");
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      
+      const newStructures = [...canalStructures];
+      let added = 0;
+      
+      const getStructPosition = (targetChainage: number, side: string) => {
+        let cumulativeLength = 0;
+        for (let i = 0; i < importedPoints.length - 1; i++) {
+          const p1 = importedPoints[i];
+          const p2 = importedPoints[i+1];
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (cumulativeLength + dist >= targetChainage || i === importedPoints.length - 2) {
+            let t = dist === 0 ? 0 : (targetChainage - cumulativeLength) / dist;
+            t = Math.max(0, Math.min(1, t));
+            const structX = p1.x + t * dx;
+            const structY = p1.y + t * dy;
+
+            let prevPoint = p1;
+            let nextPoint = p2;
+            const distToP1 = t * dist;
+            const distToP2 = (1 - t) * dist;
+
+            if (distToP1 <= 5.0 && i > 0) prevPoint = importedPoints[i - 1];
+            else if (distToP2 <= 5.0 && i < importedPoints.length - 2) nextPoint = importedPoints[i + 2];
+
+            let angleDx = nextPoint.x - prevPoint.x;
+            let angleDy = nextPoint.y - prevPoint.y;
+            if (angleDx === 0 && angleDy === 0) { angleDx = dx; angleDy = dy; }
+
+            let angleDeg = Math.atan2(angleDy, angleDx) * 180 / Math.PI;
+            if (side === 'phai') angleDeg += 180;
+
+            return { structX, structY, angleDeg };
+          }
+          cumulativeLength += dist;
+        }
+        return null;
+      };
+
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (!row || row.length < 3 || !row[0]) continue;
+        
+        const name = String(row[0]).trim();
+        const chainageStr = String(row[1] || '0').trim();
+        const chainageFloat = parseFloat(chainageStr.replace(/[^\d.]/g, '')) || 0;
+        const length = parseFloat(row[2]) || 0;
+        
+        let flowCalcMethod = String(row[3] || 'tinh_toan').trim();
+        if (flowCalcMethod !== 'tinh_toan' && flowCalcMethod !== 'nhap_gia_tri') flowCalcMethod = 'tinh_toan';
+        
+        const reqFlow = parseFloat(row[4]) || 0;
+        const riceArea = parseFloat(row[5]) || 0;
+        const fruitArea = parseFloat(row[6]) || 0;
+        
+        let permeability = String(row[7] || 'rat_it').trim();
+        if (permeability === 'Đất thấm ít') permeability = 'it';
+        else if (permeability === 'Đất thấm nhiều') permeability = 'nhieu';
+        else permeability = 'rat_it';
+        
+        const reqWaterLevel = parseFloat(row[8]) || 0;
+        
+        let offtakeSide = String(row[9] || 'trai').trim().toLowerCase();
+        if (offtakeSide === 'phải' || offtakeSide === 'phai') offtakeSide = 'phai';
+        else offtakeSide = 'trai';
+        
+        const offtakeSize = parseInt(row[10]) || 1;
+        
+        let offtakeStatusRaw = String(row[11] || 'mới').trim().toLowerCase();
+        let offtakeStatus = 'moi';
+        let status: StructureStatus = 'planned';
+        if (offtakeStatusRaw.includes('sửa')) { offtakeStatus = 'sua'; status = 'repair'; }
+        else if (offtakeStatusRaw.includes('đã có')) { offtakeStatus = 'da_co'; status = 'existing'; }
+
+        const pos = getStructPosition(chainageFloat, offtakeSide);
+        if (!pos) continue;
+
+        const newStruct = {
+          id: `struct-${Date.now()}-${added}`,
+          projectId: project?.id || '',
+          name,
+          x: pos.structX,
+          y: pos.structY,
+          angle: pos.angleDeg,
+          status,
+          type: 'offtake_irrigation',
+          chainage: chainageStr,
+          length,
+          flowCalcMethod,
+          reqFlow,
+          riceArea,
+          fruitArea,
+          permeability,
+          reqWaterLevel,
+          offtakeSide,
+          offtakeSize,
+          offtakeStatus
+        };
+        newStructures.push(newStruct as any);
+        added++;
+      }
+
+      if (added > 0) {
+        setCanalStructures(newStructures);
+        toast.success(`Đã thêm ${added} kênh nhánh từ tệp.`);
+      } else {
+        toast.error("Không tìm thấy dữ liệu hợp lệ trong tệp.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Đã xảy ra lỗi khi đọc tệp.");
+    }
+    
+    e.target.value = '';
   };
 
   useEffect(() => {
@@ -2729,10 +2874,219 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
           </div>
         )}
         {currentStep === 5 && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center text-slate-500">
-              <i className="bi bi-share text-4xl mb-4 text-slate-300 block"></i>
-              <p className="text-lg font-medium">Không gian làm việc: Xuất bản vẽ</p>
+          <div className="flex-1 flex bg-[#f8fafc] overflow-hidden">
+            {/* Sidebar cho Bước 5 */}
+            <div className="w-64 bg-white border-r border-slate-200 flex flex-col z-10 shadow-[2px_0_10px_-3px_rgba(0,0,0,0.05)]">
+              <div className="p-4 border-b border-slate-100">
+                <h3 className="font-bold text-slate-800 text-[13px] uppercase tracking-wider">Hồ sơ thiết kế</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                <div className="pt-2 pb-1 px-3">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">Báo cáo thiết kế</span>
+                </div>
+                <button
+                  onClick={() => setActiveDocTab('thuyet_minh')}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors ${activeDocTab === 'thuyet_minh' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <i className="bi bi-file-earmark-word text-base"></i>
+                  Thuyết minh thiết kế
+                </button>
+                <button
+                  onClick={() => setActiveDocTab('phu_luc')}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors ${activeDocTab === 'phu_luc' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <i className="bi bi-file-earmark-excel text-base"></i>
+                  Phụ lục khối lượng
+                </button>
+                <div className="pt-3 pb-1 px-3">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">Bản vẽ thiết kế</span>
+                </div>
+                <button
+                  onClick={() => setActiveDocTab('longitudinal')}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${activeDocTab === 'longitudinal' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <i className="bi bi-bar-chart-steps text-lg"></i>
+                  Dữ liệu cắt dọc
+                </button>
+                <button
+                  onClick={() => setActiveDocTab('cross-section')}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${activeDocTab === 'cross-section' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <i className="bi bi-arrows-collapse text-lg"></i>
+                  Thiết kế cắt ngang
+                </button>
+              </div>
+            </div>
+            
+            {/* Main Content cho Bước 5 */}
+            <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
+              {activeDocTab === 'thuyet_minh' && (
+                <div className="flex-1 flex flex-col h-full bg-[#f3f4f6]">
+                  {/* Word-like Toolbar */}
+                  <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center gap-2 flex-wrap shadow-sm z-10">
+                    <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                      <button className="p-1.5 hover:bg-slate-100 rounded text-slate-600 tooltip" title="Lưu">
+                        <i className="bi bi-floppy"></i>
+                      </button>
+                      <button className="p-1.5 hover:bg-slate-100 rounded text-slate-600 tooltip" title="In">
+                        <i className="bi bi-printer"></i>
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                      <select className="border border-slate-200 rounded px-2 py-1 text-sm bg-white hover:bg-slate-50 focus:outline-none">
+                        <option>Times New Roman</option>
+                        <option>Arial</option>
+                        <option>Roboto</option>
+                      </select>
+                      <select className="border border-slate-200 rounded px-2 py-1 text-sm bg-white hover:bg-slate-50 focus:outline-none w-[60px]">
+                        <option>12</option>
+                        <option>13</option>
+                        <option>14</option>
+                        <option>16</option>
+                        <option>18</option>
+                        <option>24</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 font-bold">B</button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 italic">I</button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 underline">U</button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 line-through">ab</button>
+                    </div>
+
+                    <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-text-left"></i></button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-text-center"></i></button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-text-right"></i></button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-justify"></i></button>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-list-ul"></i></button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-list-ol"></i></button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-table"></i></button>
+                      <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-image"></i></button>
+                    </div>
+                    
+                    <div className="ml-auto">
+                      <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1 shadow-sm transition-colors">
+                        <i className="bi bi-magic"></i> Tạo tự động
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Editor Body (A4 Pages) */}
+                  <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center gap-8 bg-[#f3f4f6]">
+                    
+                    {/* Bìa 1 */}
+                    <div 
+                      className="bg-white shadow-md border border-slate-200 outline-none pt-[20mm] pr-[20mm] pb-[20mm] pl-[25mm] text-[14pt] leading-relaxed font-['Times_New_Roman'] w-[794px] min-h-[1123px] shrink-0 flex flex-col"
+                      contentEditable={true}
+                      suppressContentEditableWarning={true}
+                    >
+                      <p className="text-center font-bold uppercase mb-[100px]">{project?.investor || '..............................................................'}</p>
+                      
+                      <div className="flex-1 flex flex-col">
+                        <p className="text-center font-bold uppercase mb-1">DỰ ÁN: {project?.name || '..............................................................'}</p>
+                        <p className="text-center font-bold uppercase mb-1">HẠNG MỤC: {project?.category || '..............................................................'}</p>
+                        <p className="text-center mb-1 uppercase">{project?.location ? (project.location.toLowerCase().includes('tỉnh') || project.location.toLowerCase().includes('thành phố') ? project.location : `Tỉnh ${project.location}`) : '..............................................................'}</p>
+                        <p className="text-center mb-[80px] uppercase">{project?.phase?.name || project?.phaseId || '..............................................................'}</p>
+
+                        <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">THUYẾT MINH THIẾT KẾ</h1>
+                        <p className="text-center font-bold uppercase mb-[80px]">SỐ HIỆU: {project?.code || '....................'}</p>
+                      </div>
+
+                      <div className="grid grid-cols-[120px_1fr_120px] gap-4 items-center w-full mt-auto">
+                        <div className="flex justify-center items-center">
+                          {companyInfo?.logoUrl ? (
+                            <img src={companyInfo.logoUrl} alt="Logo" className="max-w-full max-h-[80px] object-contain" />
+                          ) : (
+                            <img src="https://placehold.co/150x150/e2e8f0/64748b?text=LOGO" alt="Logo" className="max-w-[80px] max-h-[80px] object-contain rounded-md" />
+                          )}
+                        </div>
+                        <div className="text-center leading-tight px-4">
+                          <p className="font-bold uppercase text-[10pt]">{companyInfo?.name || '..............................................................'}</p>
+                          <p className="text-[9pt]">{companyInfo?.address || '..............................................................'}</p>
+                          <p className="text-[10pt]">Điện thoại: 0220.3.89.89.89</p>
+                        </div>
+                        <div className="text-center font-bold text-[12pt]">
+                          <p>HẢI PHÒNG</p>
+                          <p>{new Date().getFullYear()}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bìa 2 */}
+                    <div 
+                      className="bg-white shadow-md border border-slate-200 outline-none pt-[20mm] pr-[20mm] pb-[20mm] pl-[25mm] text-[14pt] leading-relaxed font-['Times_New_Roman'] w-[794px] min-h-[1123px] shrink-0 flex flex-col"
+                      contentEditable={true}
+                      suppressContentEditableWarning={true}
+                    >
+                      <p className="text-center font-bold uppercase mb-[100px] whitespace-pre-line">
+                        {companyInfo?.name ? companyInfo.name.replace(' VÀ ', '\n VÀ ') : '..............................................................'}
+                      </p>
+                      
+                      <div className="flex-1 flex flex-col">
+                        <p className="text-center font-bold uppercase mb-1">DỰ ÁN: {project?.name || '..............................................................'}</p>
+                        <p className="text-center font-bold uppercase mb-1">HẠNG MỤC: {project?.category || '..............................................................'}</p>
+                        <p className="text-center mb-1 uppercase">{project?.location ? (project.location.toLowerCase().includes('tỉnh') || project.location.toLowerCase().includes('thành phố') ? project.location : `Tỉnh ${project.location}`) : '..............................................................'}</p>
+                        <p className="text-center mb-[80px] uppercase">{project?.phase?.name || project?.phaseId || '..............................................................'}</p>
+
+                        <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">THUYẾT MINH THIẾT KẾ</h1>
+                        <p className="text-center font-bold uppercase mb-[80px]">SỐ HIỆU: {project?.code || '....................'}</p>
+                      </div>
+
+                      <p className="text-center font-bold">......, Tháng ...... Năm ......</p>
+                    </div>
+
+                    {/* Nội dung chính */}
+                    <div 
+                      className="bg-white shadow-md border border-slate-200 outline-none pt-[20mm] pr-[20mm] pb-[20mm] pl-[25mm] text-[14pt] leading-relaxed font-['Times_New_Roman'] w-[794px] min-h-[1123px] shrink-0"
+                      contentEditable={true}
+                      suppressContentEditableWarning={true}
+                    >
+                      <h3 className="font-bold text-lg mb-2 uppercase">1. GIỚI THIỆU CHUNG</h3>
+                      <p className="mb-4 text-justify indent-8">
+                        Báo cáo này trình bày kết quả tính toán và thiết kế kỹ thuật cho dự án {project?.name || 'Hệ thống thuỷ lợi Sông Sỏi'}.
+                        Tài liệu này được tự động tạo dựa trên số liệu phân tích mạng lưới và các thông số thiết kế...
+                      </p>
+                      
+                      <h3 className="font-bold text-lg mb-2 mt-6 uppercase">2. SỐ LIỆU ĐẦU VÀO</h3>
+                      <ul className="list-disc pl-12 mb-4">
+                        <li className="mb-1">Lưu lượng yêu cầu: ...</li>
+                        <li className="mb-1">Hệ số nhám: ...</li>
+                        <li className="mb-1">Mực nước khống chế: ...</li>
+                      </ul>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+              {activeDocTab === 'phu_luc' && (
+                <div className="p-6">
+                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 flex items-center justify-center min-h-[300px]">
+                    <p className="text-slate-500">Đang phát triển tính năng tạo phụ lục khối lượng...</p>
+                  </div>
+                </div>
+              )}
+              {activeDocTab === 'longitudinal' && (
+                <div className="p-6">
+                  <h2 className="text-lg font-bold text-slate-800 mb-4">Xuất dữ liệu Cắt dọc AutoCAD</h2>
+                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 flex items-center justify-center min-h-[300px]">
+                    <p className="text-slate-500">Đang phát triển chức năng xuất số liệu CAD...</p>
+                  </div>
+                </div>
+              )}
+              {activeDocTab === 'cross-section' && (
+                <div className="p-6">
+                  <h2 className="text-lg font-bold text-slate-800 mb-4">Thiết kế Cắt ngang chi tiết & Khối lượng</h2>
+                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 flex items-center justify-center min-h-[300px]">
+                    <p className="text-slate-500">Đang phát triển không gian lồng ghép mặt cắt...</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2753,6 +3107,21 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
             onToggle={setIsPropertiesExpanded}
             collapsedTitle="Thông số kênh nhánh"
             width="w-[320px]"
+            footer={
+              <div className="flex justify-between items-center w-full">
+                <a href="/template.xlsx" download className="cursor-pointer px-3 py-1.5 text-blue-600 hover:bg-blue-50 text-[12px] font-medium rounded flex items-center gap-1 transition-colors">
+                  <i className="bi bi-download"></i>
+                  Tệp mẫu
+                </a>
+                <div>
+                  <input type="file" id="branch-excel-upload" className="hidden" accept=".xlsx, .xls" onChange={handleBranchExcelUpload} />
+                  <label htmlFor="branch-excel-upload" className="cursor-pointer px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-[12px] font-medium rounded text-slate-700 flex items-center gap-1 transition-colors">
+                    <i className="bi bi-file-earmark-excel text-green-600"></i>
+                    Chọn tệp
+                  </label>
+                </div>
+              </div>
+            }
             topBar={
               <>
                 <select 
@@ -3123,10 +3492,11 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                 </div>
               </PropertyRow>
               
-              <PropertyRow label="Cửa nhận nước">
+              <PropertyRow label="Số cửa nhận nước trên kênh">
                 <input 
                   type="number" 
-                  className="w-full px-2 py-1 text-[11px] outline-none text-black" 
+                  disabled={flowCalcMethodInput === 'nhap_gia_tri'}
+                  className={`w-full px-2 py-1 text-[11px] outline-none text-black ${flowCalcMethodInput === 'nhap_gia_tri' ? 'bg-slate-100 text-slate-400' : ''}`}
                   value={offtakeSizeInput}
                   onChange={e => setOfftakeSizeInput(e.target.value)}
                 />

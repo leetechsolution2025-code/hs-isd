@@ -8,6 +8,7 @@ interface PropertiesPanelProps {
   topBar?: ReactNode;
   children: ReactNode;
   width?: string;
+  footer?: ReactNode;
 }
 
 export function PropertiesPanel({
@@ -16,7 +17,8 @@ export function PropertiesPanel({
   collapsedTitle = "Thuộc tính",
   topBar,
   children,
-  width = "w-[320px]"
+  width = "w-[320px]",
+  footer
 }: PropertiesPanelProps) {
   return (
     <div className={`absolute right-0 top-0 bottom-0 z-10 transition-all duration-300 bg-[#f0f0f0] border-l border-slate-300 flex flex-col shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] ${isExpanded ? width : 'w-10'}`}>
@@ -62,6 +64,12 @@ export function PropertiesPanel({
               {children}
             </div>
           </div>
+          
+          {footer && (
+            <div className="p-3 border-t border-slate-300 bg-slate-50 mt-auto">
+              {footer}
+            </div>
+          )}
         </div>
       )}
     </div>
