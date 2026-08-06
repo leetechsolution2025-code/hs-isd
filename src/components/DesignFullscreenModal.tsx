@@ -15,6 +15,9 @@ import { PropertiesPanel, PropertyGroup, PropertyRow } from './PropertiesPanel';
 import Button from './Button';
 import TerrainDataOffcanvas from './TerrainDataOffcanvas';
 import LongitudinalProfileChart, { ProfileChartPoint } from './LongitudinalProfileChart';
+import ExportSettingsOffcanvas, { ExportSettings } from './ExportSettingsOffcanvas';
+import { generateProfileDXF } from '@/lib/exportDXF';
+import { generateProfileLISP } from '@/lib/exportLISP';
 
 interface DesignFullscreenModalProps {
   isOpen: boolean;
@@ -160,6 +163,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   }[]>([]);
   const [selectedStructureId, setSelectedStructureId] = useState('');
   const [isTerrainDataOpen, setIsTerrainDataOpen] = useState(false);
+  const [isExportSettingsOpen, setIsExportSettingsOpen] = useState(false);
   const [terrainData, setTerrainData] = useState<any[]>([]);
   const [focusStructureTrigger, setFocusStructureTrigger] = useState<{id: string, ts: number} | null>(null);
   const [permeabilityBranchOptions, setPermeabilityBranchOptions] = useState<{id: string, name: string}[]>([]);
@@ -405,7 +409,11 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
             setViewTransform({ zoom: 1, x: 0, y: 0 });
           }
           if (structures && structures.length > 0) {
-            setCanalStructures(structures as any);
+            const mappedStructures = structures.map((s: any) => ({
+              ...s,
+              inlineStructureType: s.type === 'inline_structure' ? (s.flowCalcMethod || undefined) : undefined
+            }));
+            setCanalStructures(mappedStructures as any);
           }
           if (branchPermCats && branchPermCats.length > 0) {
             setPermeabilityBranchOptions(branchPermCats);
@@ -1086,7 +1094,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   };
 
   const chartData = useMemo(() => {
-    if (currentStep !== 4 || computedSegments.length === 0) return [];
+    if (computedSegments.length === 0) return [];
     const data: ProfileChartPoint[] = [];
     
     computedSegments.forEach((seg, segIdx) => {
@@ -1162,7 +1170,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
     });
     
     return data;
-  }, [currentStep, computedSegments, segmentHydraulicResults, flowNodesData.flowNodes, nodeElevations]);
+  }, [computedSegments, segmentHydraulicResults, flowNodesData.flowNodes, nodeElevations]);
 
   useEffect(() => {
     if (focusedChainage !== null) {
@@ -2591,6 +2599,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                             status: 'planned' as StructureStatus,
                             type: 'inline_structure',
                             inlineStructureType: inlineStructureTypeInput,
+                            flowCalcMethod: inlineStructureTypeInput, // Lưu tạm vào flowCalcMethod
                             chainage: startChainageInput,
                             endChainage: endChainageInput,
                             headLoss: parseFloat(inlineStructureLossInput) || 0
@@ -2616,6 +2625,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                               ...s,
                               name: inlineStructureNameInput || inlineStructureTypeInput || `Công trình`,
                               inlineStructureType: inlineStructureTypeInput,
+                              flowCalcMethod: inlineStructureTypeInput,
                               chainage: startChainageInput,
                               endChainage: endChainageInput,
                               headLoss: parseFloat(inlineStructureLossInput) || 0
@@ -2920,7 +2930,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
             
             {/* Main Content cho Bước 5 */}
             <div className="flex-1 flex flex-col bg-[#f0f2f5] overflow-hidden relative">
-              {activeDocTab === 'thuyet_minh' && (
+              {(activeDocTab === 'thuyet_minh' || activeDocTab === 'phu_luc') && (
                 <div className="flex-1 flex flex-col h-full bg-[#f3f4f6]">
                   {/* Word-like Toolbar */}
                   <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center gap-2 flex-wrap shadow-sm z-10">
@@ -2994,7 +3004,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         <p className="text-center mb-1 uppercase">{project?.location ? (project.location.toLowerCase().includes('tỉnh') || project.location.toLowerCase().includes('thành phố') ? project.location : `Tỉnh ${project.location}`) : '..............................................................'}</p>
                         <p className="text-center mb-[80px] uppercase">{project?.phase?.name || project?.phaseId || '..............................................................'}</p>
 
-                        <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">THUYẾT MINH THIẾT KẾ</h1>
+                        <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">{activeDocTab === 'phu_luc' ? 'PHỤ LỤC KHỐI LƯỢNG' : 'THUYẾT MINH THIẾT KẾ'}</h1>
                         <p className="text-center font-bold uppercase mb-[80px]">SỐ HIỆU: {project?.code || '....................'}</p>
                       </div>
 
@@ -3034,11 +3044,45 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         <p className="text-center mb-1 uppercase">{project?.location ? (project.location.toLowerCase().includes('tỉnh') || project.location.toLowerCase().includes('thành phố') ? project.location : `Tỉnh ${project.location}`) : '..............................................................'}</p>
                         <p className="text-center mb-[80px] uppercase">{project?.phase?.name || project?.phaseId || '..............................................................'}</p>
 
-                        <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">THUYẾT MINH THIẾT KẾ</h1>
-                        <p className="text-center font-bold uppercase mb-[80px]">SỐ HIỆU: {project?.code || '....................'}</p>
+                        <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">{activeDocTab === 'phu_luc' ? 'PHỤ LỤC KHỐI LƯỢNG' : 'THUYẾT MINH THIẾT KẾ'}</h1>
+                        <p className="text-center font-bold uppercase mb-[60px]">SỐ HIỆU: {project?.code || '....................'}</p>
+
+                        <div className="w-[80%] mx-auto mt-4 mb-auto">
+                          <table className="w-full text-[14pt] border-collapse italic">
+                            <thead>
+                              <tr>
+                                <th className="py-2 px-4 whitespace-nowrap"></th>
+                                <th className="py-2 px-4 w-[25%] font-bold not-italic">Chữ ký</th>
+                                <th className="py-2 px-4 w-[45%] font-bold not-italic">Họ và tên</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td className="py-2 px-4 whitespace-nowrap">Người lập:</td>
+                                <td className="py-2 px-4"></td>
+                                <td className="py-2 px-4"></td>
+                              </tr>
+                              <tr>
+                                <td className="py-2 px-4 whitespace-nowrap">Chủ nhiệm dự án:</td>
+                                <td className="py-2 px-4"></td>
+                                <td className="py-2 px-4"></td>
+                              </tr>
+                              <tr>
+                                <td className="py-2 px-4 whitespace-nowrap">Giám định chất lượng:</td>
+                                <td className="py-2 px-4"></td>
+                                <td className="py-2 px-4"></td>
+                              </tr>
+                              <tr>
+                                <td className="py-2 px-4 whitespace-nowrap">Giám đốc Công ty:</td>
+                                <td className="py-2 px-4"></td>
+                                <td className="py-2 px-4"></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
 
-                      <p className="text-center font-bold">......, Tháng ...... Năm ......</p>
+                      <p className="text-center font-bold">{`HẢI PHÒNG, ${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`}</p>
                     </div>
 
                     {/* Nội dung chính */}
@@ -3071,18 +3115,277 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                   </div>
                 </div>
               )}
-              {activeDocTab === 'longitudinal' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-800 mb-4">Xuất dữ liệu Cắt dọc AutoCAD</h2>
-                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 flex items-center justify-center min-h-[300px]">
-                    <p className="text-slate-500">Đang phát triển chức năng xuất số liệu CAD...</p>
+              {activeDocTab === 'longitudinal' && (() => {
+                const allStakes = new Map<number, any>();
+                
+                (terrainData || []).forEach(t => {
+                  const lyTrinh = Number(t.lyTrinh) || 0;
+                  allStakes.set(lyTrinh, {
+                    name: t.tenMoc || t.tenCoc || '',
+                    chainage: lyTrinh,
+                    dayVal: Number(t.caoDo) || 0,
+                  });
+                });
+                
+                const finalData: any[] = [];
+                const processedTerrainChainages = new Set<number>();
+                
+                chartData.forEach((c, index) => {
+                  let matchedTerrain = null;
+                  for (let k of allStakes.keys()) {
+                    if (Math.abs(k - c.chainage) < 0.01) {
+                      matchedTerrain = allStakes.get(k);
+                      processedTerrainChainages.add(k);
+                      break;
+                    }
+                  }
+                  
+                  finalData.push({
+                    name: c.name || (matchedTerrain ? matchedTerrain.name : ''),
+                    chainage: c.chainage,
+                    dayVal: matchedTerrain ? matchedTerrain.dayVal : (c.dayVal !== undefined ? c.dayVal : 0),
+                    htkVal: c.htkVal,
+                    bedVal: c.dayVal,
+                    dinhKenhVal: c.dinhKenhVal,
+                    yeuCauVal: c.yeuCauVal,
+                    isTerrain: false,
+                    isDrop: c.isDrop,
+                    endChainage: c.endChainage,
+                    _index: index
+                  });
+                });
+                
+                for (let [lyTrinh, t] of allStakes.entries()) {
+                  if (!processedTerrainChainages.has(lyTrinh)) {
+                    finalData.push({
+                      name: t.name,
+                      chainage: t.chainage,
+                      dayVal: t.dayVal,
+                      htkVal: null,
+                      bedVal: null,
+                      dinhKenhVal: null,
+                      isTerrain: true
+                    });
+                  }
+                }
+                
+                const mergedData = finalData.sort((a, b) => {
+                  if (Math.abs(a.chainage - b.chainage) > 0.001) return a.chainage - b.chainage;
+                  if (a._index !== undefined && b._index !== undefined) return a._index - b._index;
+                  return 0;
+                });
+                
+                mergedData.forEach((row, idx) => {
+                  if (row.bedVal === null || row.bedVal === undefined) {
+                    let prev = null;
+                    for (let i = idx - 1; i >= 0; i--) {
+                      if (mergedData[i].bedVal !== null && mergedData[i].bedVal !== undefined) { prev = mergedData[i]; break; }
+                    }
+                    let next = null;
+                    for (let i = idx + 1; i < mergedData.length; i++) {
+                      if (mergedData[i].bedVal !== null && mergedData[i].bedVal !== undefined) { next = mergedData[i]; break; }
+                    }
+                    
+                    if (prev && next && next.chainage !== prev.chainage) {
+                      const ratio = (row.chainage - prev.chainage) / (next.chainage - prev.chainage);
+                      row.htkVal = prev.htkVal + ratio * (next.htkVal - prev.htkVal);
+                      row.bedVal = prev.bedVal + ratio * (next.bedVal - prev.bedVal);
+                      row.dinhKenhVal = prev.dinhKenhVal + ratio * (next.dinhKenhVal - prev.dinhKenhVal);
+                    } else if (prev) {
+                      row.htkVal = prev.htkVal;
+                      row.bedVal = prev.bedVal;
+                      row.dinhKenhVal = prev.dinhKenhVal;
+                    } else if (next) {
+                      row.htkVal = next.htkVal;
+                      row.bedVal = next.bedVal;
+                      row.dinhKenhVal = next.dinhKenhVal;
+                    } else {
+                      row.htkVal = row.dayVal;
+                      row.bedVal = row.dayVal;
+                      row.dinhKenhVal = row.dayVal;
+                    }
+                  }
+                });
+
+                return (
+                <div className="flex-1 flex flex-col h-full bg-[#f3f4f6]">
+                  {/* Toolbar */}
+                  <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between flex-wrap shadow-sm z-10">
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Dữ liệu Cắt dọc AutoCAD</h2>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setIsExportSettingsOpen(true)}
+                        className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 shadow-sm transition-colors"
+                      >
+                        <i className="bi bi-gear-fill"></i>
+                        Cấu hình & Xuất bản vẽ
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="bg-white flex-1 flex flex-col overflow-hidden">
+                    <div className="overflow-auto relative">
+                      <table className="w-full text-[13px] text-left">
+                        <thead className="text-xs text-slate-600 uppercase bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                          <tr>
+                            <th className="px-4 py-2">Tên cọc</th>
+                            <th className="px-4 py-2">Khoảng cách lẻ (m)</th>
+                            <th className="px-4 py-2">Lý trình (m)</th>
+                            <th className="px-4 py-2">Cao độ tự nhiên (m)</th>
+                            <th className="px-4 py-2">Đáy kênh (m)</th>
+                            <th className="px-4 py-2">Mực nước TK (m)</th>
+                            <th className="px-4 py-2">Đỉnh kênh (m)</th>
+                            <th className="px-4 py-2">Ghi chú</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mergedData.map((row, i) => {
+                            const prevRow = i > 0 ? mergedData[i - 1] : null;
+                            const kcl = prevRow ? row.chainage - prevRow.chainage : 0;
+                            return (
+                            <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                              <td className="px-4 py-2 font-medium text-slate-800">{row.name || ''}</td>
+                              <td className="px-4 py-2 text-slate-600">{kcl.toFixed(2)}</td>
+                              <td className="px-4 py-2 text-slate-600">{row.chainage.toFixed(2)}</td>
+                              <td className="px-4 py-2 text-slate-600">{(row.dayVal || 0).toFixed(2)}</td>
+                              <td className="px-4 py-2 text-slate-600">{(row.bedVal || 0).toFixed(2)}</td>
+                              <td className="px-4 py-2 text-slate-600">{(row.htkVal || 0).toFixed(2)}</td>
+                              <td className="px-4 py-2 text-slate-600">{(row.dinhKenhVal || 0).toFixed(2)}</td>
+                              <td className="px-4 py-2 text-slate-500">{row.name}</td>
+                            </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
-              )}
+                <ExportSettingsOffcanvas 
+                  isOpen={isExportSettingsOpen}
+                  onClose={() => setIsExportSettingsOpen(false)}
+                  onExportLISP={(settings) => {
+                    const landmarkData: { name?: string, chainage: number, angleStr: string }[] = [];
+                    let current = 0;
+                    if (importedPoints && importedPoints.length > 0) {
+                      for (let i = 0; i < importedPoints.length; i++) {
+                        if (i > 0) {
+                          const p1 = importedPoints[i-1];
+                          const p2 = importedPoints[i];
+                          current += Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                        }
+                        
+                        let angleStr = "";
+                        if (i > 0 && i < importedPoints.length - 1) {
+                          const p0 = importedPoints[i-1];
+                          const p1 = importedPoints[i];
+                          const p2 = importedPoints[i+1];
+                          
+                          const dx1 = p1.x - p0.x;
+                          const dy1 = p1.y - p0.y;
+                          const dx2 = p2.x - p1.x;
+                          const dy2 = p2.y - p1.y;
+                          
+                          let da = Math.atan2(dy2, dx2) - Math.atan2(dy1, dx1);
+                          while (da > Math.PI) da -= 2 * Math.PI;
+                          while (da < -Math.PI) da += 2 * Math.PI;
+                          
+                          const deg = da * 180 / Math.PI;
+                          if (Math.abs(deg) > 0.5) {
+                            const absDeg = Math.abs(deg);
+                            const d = Math.floor(absDeg);
+                            const totalSeconds = Math.round((absDeg - d) * 3600);
+                            const m = Math.floor(totalSeconds / 60);
+                            const s = totalSeconds % 60;
+                            angleStr = `${d}%%d${m}'${s}''`;
+                          }
+                        }
+                        landmarkData.push({ name: importedPoints[i].name, chainage: current, angleStr });
+                      }
+                    }
+                    const lispContent = generateProfileLISP(mergedData, settings, landmarkData, canalStructures);
+                    const blob = new Blob([lispContent], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'VeCatDoc.scr';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success("Đã xuất file AutoCAD Script thành công");
+                  }}
+                  onExportDXF={(settings) => {
+                    const landmarkData: { name?: string, chainage: number, angleStr: string }[] = [];
+                    let current = 0;
+                    if (importedPoints && importedPoints.length > 0) {
+                      for (let i = 0; i < importedPoints.length; i++) {
+                        if (i > 0) {
+                          const p1 = importedPoints[i-1];
+                          const p2 = importedPoints[i];
+                          current += Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                        }
+                        
+                        let angleStr = "";
+                        if (i > 0 && i < importedPoints.length - 1) {
+                          const p0 = importedPoints[i-1];
+                          const p1 = importedPoints[i];
+                          const p2 = importedPoints[i+1];
+                          
+                          const dx1 = p1.x - p0.x;
+                          const dy1 = p1.y - p0.y;
+                          const dx2 = p2.x - p1.x;
+                          const dy2 = p2.y - p1.y;
+                          
+                          let da = Math.atan2(dy2, dx2) - Math.atan2(dy1, dx1);
+                          while (da > Math.PI) da -= 2 * Math.PI;
+                          while (da < -Math.PI) da += 2 * Math.PI;
+                          
+                          const deg = da * 180 / Math.PI;
+                          if (Math.abs(deg) > 0.5) {
+                            const absDeg = Math.abs(deg);
+                            const d = Math.floor(absDeg);
+                            const totalSeconds = Math.round((absDeg - d) * 3600);
+                            const m = Math.floor(totalSeconds / 60);
+                            const s = totalSeconds % 60;
+                            angleStr = `${d}%%d${m}'${s}''`;
+                          }
+                        }
+                        landmarkData.push({ name: importedPoints[i].name, chainage: current, angleStr });
+                      }
+                    }
+                    const dxfContent = generateProfileDXF(mergedData, settings, landmarkData, canalStructures);
+                    const blob = new Blob([dxfContent], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'VeCatDoc.dxf';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success("Đã xuất file DXF thành công");
+                  }}
+                  onExportCSV={() => {
+                    let csvContent = "TenCoc,KhoangCach,LyTrinh,CaoDoTuNhien,CaoDoDay,MucNuocThietKe,CaoDoDinh,GhiChu\n";
+                    let prevChainage = 0;
+                    mergedData.forEach((row, i) => {
+                      const kcl = i === 0 ? 0 : (row.chainage - prevChainage);
+                      prevChainage = row.chainage;
+                      csvContent += `${row.name || ''},${kcl.toFixed(2)},${row.chainage},${(row.dayVal || 0).toFixed(2)},${(row.bedVal || 0).toFixed(2)},${(row.htkVal || 0).toFixed(2)},${(row.dinhKenhVal || 0).toFixed(2)},${row.name}\n`;
+                    });
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'DuLieuCatDoc.csv';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success("Đã xuất dữ liệu thô CSV thành công");
+                  }}
+                />
+              </div>
+              );
+            })()}
               {activeDocTab === 'cross-section' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-800 mb-4">Thiết kế Cắt ngang chi tiết & Khối lượng</h2>
-                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 flex items-center justify-center min-h-[300px]">
+                <div className="flex-1 p-2 h-full flex flex-col">
+                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 flex items-center justify-center">
                     <p className="text-slate-500">Đang phát triển không gian lồng ghép mặt cắt...</p>
                   </div>
                 </div>
