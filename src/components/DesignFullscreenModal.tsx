@@ -18,6 +18,7 @@ import LongitudinalProfileChart, { ProfileChartPoint } from './LongitudinalProfi
 import ExportSettingsOffcanvas, { ExportSettings } from './ExportSettingsOffcanvas';
 import { generateProfileDXF } from '@/lib/exportDXF';
 import { generateProfileLISP } from '@/lib/exportLISP';
+import CrossSectionDesignWorkspace from './cross-section/CrossSectionDesignWorkspace';
 
 interface DesignFullscreenModalProps {
   isOpen: boolean;
@@ -150,6 +151,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const [minVelocity, setMinVelocity] = useState<string>('');
   const [kminCoef, setKminCoef] = useState<string>('0.8');
   const [flowDifference, setFlowDifference] = useState<string>('');
+  const [crossSectionParams, setCrossSectionParams] = useState<Record<number, any>>({});
 
   const [hoverTooltip, setHoverTooltip] = useState<{ x: number, y: number, data: any, segIdx: number } | null>(null);
 
@@ -448,6 +450,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
               if (config.controlElevationType !== undefined) setControlElevationType(config.controlElevationType);
               if (config.controlElevationValue !== undefined) setControlElevationValue(config.controlElevationValue);
               if (config.maintainWaterLevel !== undefined) setMaintainWaterLevel(config.maintainWaterLevel);
+              if (config.crossSectionParams !== undefined) setCrossSectionParams(config.crossSectionParams);
             } catch (e) {
               console.error("Failed to parse design config", e);
             }
@@ -541,7 +544,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
       calculatedElevations,
       controlElevationType,
       controlElevationValue,
-      maintainWaterLevel
+      maintainWaterLevel,
+      crossSectionParams
     };
 
     const [resLandmark, resCanal, resConfig] = await Promise.all([
@@ -1789,7 +1793,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                                               <span className="text-slate-300">|</span>
                                               <span>Hệ số mái: <strong className="text-slate-700">{res.m}</strong></span>
                                               <span className="text-slate-300">|</span>
-                                              <span>Độ cao an toàn: <strong className="text-slate-700">{res.safeHeight}m</strong></span>
+                                              <span>Độ cao an toàn: <strong className="text-slate-700">{res.safeHeight?.includes('-') ? calculateSafeHeight(startNode.q_sau, res.crossSectionType as any) : res.safeHeight}m</strong></span>
                                             </div>
                                             <div className="flex justify-between items-center whitespace-nowrap gap-2">
                                               <span>Bề rộng đáy: <strong className="text-slate-700">{res.b_out}m</strong></span>
@@ -3384,10 +3388,15 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
               );
             })()}
               {activeDocTab === 'cross-section' && (
-                <div className="flex-1 p-2 h-full flex flex-col">
-                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 flex items-center justify-center">
-                    <p className="text-slate-500">Đang phát triển không gian lồng ghép mặt cắt...</p>
-                  </div>
+                <div className="flex-1 w-full h-full overflow-hidden">
+                  <CrossSectionDesignWorkspace 
+                    computedSegments={computedSegments}
+                    segmentHydraulicResults={segmentHydraulicResults}
+                    flowNodes={flowNodesData.flowNodes}
+                    project={project}
+                    crossSectionParams={crossSectionParams}
+                    setCrossSectionParams={setCrossSectionParams}
+                  />
                 </div>
               )}
             </div>

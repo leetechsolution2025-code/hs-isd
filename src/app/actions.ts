@@ -680,6 +680,7 @@ export async function saveCanalStructures(projectId: string, structures: any[]) 
     if (structures.length > 0) {
       await prisma.canalStructure.createMany({
         data: structures.map(s => ({
+          id: s.id && !s.id.startsWith('temp_') ? s.id : (s.id && s.id.startsWith('temp_') ? s.id : undefined),
           projectId,
           name: s.name,
           x: s.x,
