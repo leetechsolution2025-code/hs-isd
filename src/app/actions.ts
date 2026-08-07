@@ -774,3 +774,60 @@ export async function saveTerrainData(projectId: string, data: any[]) {
     return { success: false, error: String(error) };
   }
 }
+
+export async function getCrossSectionData(projectId: string) {
+  try {
+    const data = await (prisma as any).crossSectionData.findMany({
+      where: { projectId },
+      orderBy: { chainage: 'asc' }
+    });
+    
+    return data.map((item: any) => ({
+      name: item.name,
+      chainage: item.chainage,
+      centerOffset: item.centerOffset,
+      centerElevation: item.centerElevation,
+      datum: item.datum,
+      points: item.points ? JSON.parse(item.points) : []
+    }));
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu mặt cắt ngang:', error);
+    return [];
+  }
+}
+
+export async function saveCrossSectionData(projectId: string, stakes: any[]) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Delete old data
+      await (tx as any).crossSectionData.deleteMany({
+        where: { projectId }
+      });
+      
+      if (stakes && stakes.length > 0) {
+        const CHUNK_SIZE = 50;
+        const mappedData = stakes.map(stake => ({
+          projectId,
+          name: stake.name || '',
+          chainage: parseFloat(stake.chainage) || 0,
+          centerOffset: parseFloat(stake.centerOffset) || 0,
+          centerElevation: parseFloat(stake.centerElevation) || 0,
+          datum: stake.datum !== undefined && stake.datum !== null ? parseFloat(stake.datum) : null,
+          points: JSON.stringify(stake.points || [])
+        }));
+        
+        for (let i = 0; i < mappedData.length; i += CHUNK_SIZE) {
+          const chunk = mappedData.slice(i, i + CHUNK_SIZE);
+          await (tx as any).crossSectionData.createMany({
+            data: chunk
+          });
+        }
+      }
+    });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Lỗi khi lưu dữ liệu mặt cắt ngang:', error);
+    return { success: false, error: String(error) };
+  }
+}

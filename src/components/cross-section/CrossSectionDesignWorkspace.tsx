@@ -15,6 +15,7 @@ export interface CrossSectionStake {
   chainage: number;
   centerOffset: number;
   centerElevation: number;
+  datum?: number;
   points: CrossSectionPoint[];
 }
 
@@ -29,9 +30,10 @@ const parseTerrainFile = (text: string): CrossSectionStake[] => {
       const parts = line.split(/\s+/);
       const name = parts[1] || '';
       const chainage = parseFloat(parts[2]) || 0;
+      const datum = parseFloat(parts[3]) || undefined;
       const centerOffset = parseFloat(parts[4]) || 10.0;
       const centerElevation = parseFloat(parts[5]) || 0.0;
-      currentStake = { name, chainage, centerOffset, centerElevation, points: [] };
+      currentStake = { name, chainage, centerOffset, centerElevation, datum, points: [] };
     } else if (currentStake) {
       const parts = line.split(/\s+/);
       if (parts.length >= 2) {

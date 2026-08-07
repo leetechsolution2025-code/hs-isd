@@ -11,16 +11,16 @@ interface ParametricModuleProps {
   setCrossSectionParams: React.Dispatch<React.SetStateAction<Record<number, any>>>;
 }
 
-export default function ParametricModule({ 
-  computedSegments, 
-  segmentHydraulicResults, 
-  flowNodes, 
+export default function ParametricModule({
+  computedSegments,
+  segmentHydraulicResults,
+  flowNodes,
   project,
   crossSectionParams,
   setCrossSectionParams
 }: ParametricModuleProps) {
   const [selectedSegmentIdx, setSelectedSegmentIdx] = useState<number>(0);
-  
+
   const defaultParams = {
     B1: 0.2,
     B2: 0.25,
@@ -29,22 +29,25 @@ export default function ParametricModule({
     DDAY: 0.2,
     DLOT: 0.1,
     DBO: 0.3,
-    
+
     BT_trai: 1.5,
     BT_phai: 1.5,
-    
+
     MDAO1: 1.5,
     MDAO2: 1.0,
     MDAP: 1.75,
-    
+
     coRanhThoatNuoc: false,
     DTN: 0.4,
     BTN: 0.4,
     HTN: 0.4,
     coTrongCo: false,
-    
+
     coNgamMong: false,
-    
+
+    coBocThaoMoc: true,
+    dayBocThaoMoc: 0.2,
+
     vatLieuKenh: 'Bê tông cốt thép M250',
     vatLieuLot: 'Bê tông lót M100',
     vatLieuRanh: 'Xây gạch mác 75'
@@ -54,7 +57,7 @@ export default function ParametricModule({
 
   const selectedSegment = computedSegments[selectedSegmentIdx];
   const selectedHydraulics = segmentHydraulicResults[selectedSegmentIdx] || {};
-  
+
   // Extract hydraulic inputs
   const b = selectedHydraulics.b_out !== undefined ? parseFloat(selectedHydraulics.b_out) : (selectedHydraulics.b !== undefined ? parseFloat(selectedHydraulics.b) : 1.0);
   const Htk = selectedHydraulics.h_des !== undefined ? parseFloat(selectedHydraulics.h_des) : (selectedHydraulics.h !== undefined ? parseFloat(selectedHydraulics.h) : 1.0);
@@ -142,7 +145,7 @@ export default function ParametricModule({
     // Banks (bờ kênh) - DBO is drop from top of canal to bank
     const bankElevLeft = p0.y + params.DBO * scale;
     const bankElevRight = p3.y + params.DBO * scale;
-    
+
     // Intersection of outer wall and bank (ensures straight wall)
     const outerWallLeftSlope = (outerLeftBottom.x - outerLeftTop.x) / (outerLeftBottom.y - outerLeftTop.y);
     const bankInnerLeft = { x: outerLeftTop.x + (bankElevLeft - outerLeftTop.y) * outerWallLeftSlope, y: bankElevLeft };
@@ -167,27 +170,27 @@ export default function ParametricModule({
     let ditchSvg = null;
     let cutLeftFinal = cutLeft;
     let ditchTopLeft = bankOuterLeft;
-    
+
     if (params.coRanhThoatNuoc) {
       const bDitchInner = params.BTN * scale; // Rộng
       const hDitchInner = params.HTN * scale; // Sâu
       const tDitch = params.DTN * scale;      // Dày
-      
+
       const ditchTopRight = { x: bankOuterLeft.x, y: bankOuterLeft.y };
       ditchTopLeft = { x: ditchTopRight.x - (bDitchInner + 2 * tDitch), y: ditchTopRight.y };
-      
+
       const ditchOuterBotRight = { x: ditchTopRight.x, y: ditchTopRight.y + hDitchInner + tDitch };
       const ditchOuterBotLeft = { x: ditchTopLeft.x, y: ditchTopLeft.y + hDitchInner + tDitch };
-      
+
       const ditchInnerTopRight = { x: ditchTopRight.x - tDitch, y: ditchTopRight.y };
       const ditchInnerTopLeft = { x: ditchTopLeft.x + tDitch, y: ditchTopLeft.y };
       const ditchInnerBotRight = { x: ditchInnerTopRight.x, y: ditchInnerTopRight.y + hDitchInner };
       const ditchInnerBotLeft = { x: ditchInnerTopLeft.x, y: ditchInnerTopLeft.y + hDitchInner };
-      
+
       const ditchPolygon = `${ditchTopRight.x},${ditchTopRight.y} ${ditchOuterBotRight.x},${ditchOuterBotRight.y} ${ditchOuterBotLeft.x},${ditchOuterBotLeft.y} ${ditchTopLeft.x},${ditchTopLeft.y} ${ditchInnerTopLeft.x},${ditchInnerTopLeft.y} ${ditchInnerBotLeft.x},${ditchInnerBotLeft.y} ${ditchInnerBotRight.x},${ditchInnerBotRight.y} ${ditchInnerTopRight.x},${ditchInnerTopRight.y}`;
-      
+
       cutLeftFinal = { x: ditchTopLeft.x - 2 * params.MDAO2 * scale, y: ditchTopLeft.y - 2 * scale };
-      
+
       ditchSvg = (
         <polygon points={ditchPolygon} fill="#e2e8f0" stroke="#334155" strokeWidth="1" />
       );
@@ -197,7 +200,7 @@ export default function ParametricModule({
     const innerProfile = `${p0.x},${p0.y} ${p1_top.x},${p1_top.y} ${p1_right.x},${p1_right.y} ${p2_left.x},${p2_left.y} ${p2_top.x},${p2_top.y} ${p3.x},${p3.y}`;
     const outerProfile = `${outerRightTop.x},${outerRightTop.y} ${outerRightBottom.x},${outerRightBottom.y} ${concRightTop.x},${concRightTop.y} ${concRightBottom.x},${concRightBottom.y} ${concLeftBottom.x},${concLeftBottom.y} ${concLeftTop.x},${concLeftTop.y} ${outerLeftBottom.x},${outerLeftBottom.y} ${outerLeftTop.x},${outerLeftTop.y}`;
     const concretePolygon = `${innerProfile} ${outerProfile}`;
-    
+
     const dlotPolygon = `${dlotLeftTop.x},${dlotLeftTop.y} ${dlotRightTop.x},${dlotRightTop.y} ${dlotRightBottom.x},${dlotRightBottom.y} ${dlotLeftBottom.x},${dlotLeftBottom.y}`;
 
     return (
@@ -208,33 +211,33 @@ export default function ParametricModule({
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
-        
+
         {/* Dimensions Layer */}
         <g stroke="#94a3b8" strokeWidth="1" fill="none">
           <line x1={p1.x} y1={cy - 20} x2={p2.x} y2={cy - 20} />
           <line x1={p1.x} y1={cy - 25} x2={p1.x} y2={cy} />
           <line x1={p2.x} y1={cy - 25} x2={p2.x} y2={cy} />
           <text x={cx} y={cy - 25} fill="#475569" fontSize="12" textAnchor="middle" stroke="none">b = {b}m</text>
-          
+
           <line x1={p2.x + 10} y1={cy} x2={p3.x + 10} y2={p3.y} />
           <line x1={p2.x} y1={cy} x2={p2.x + 15} y2={cy} />
           <line x1={p3.x} y1={p3.y} x2={p3.x + 15} y2={p3.y} />
-          <text x={p3.x + 20} y={cy - (H_total*scale)/2} fill="#475569" fontSize="12" stroke="none">H = {H_total.toFixed(2)}m</text>
+          <text x={p3.x + 20} y={cy - (H_total * scale) / 2} fill="#475569" fontSize="12" stroke="none">H = {H_total.toFixed(2)}m</text>
         </g>
 
         {/* Earthworks Layer */}
         <g stroke="#854d0e" strokeWidth="1.5" fill="none">
           {/* Surface */}
-          <polyline points={`${cutLeftFinal.x},${cutLeftFinal.y} ${params.coRanhThoatNuoc ? ditchTopLeft.x+','+ditchTopLeft.y : bankOuterLeft.x+','+bankOuterLeft.y} ${bankInnerLeft.x},${bankInnerLeft.y}`} />
+          <polyline points={`${cutLeftFinal.x},${cutLeftFinal.y} ${params.coRanhThoatNuoc ? ditchTopLeft.x + ',' + ditchTopLeft.y : bankOuterLeft.x + ',' + bankOuterLeft.y} ${bankInnerLeft.x},${bankInnerLeft.y}`} />
           <polyline points={`${bankInnerRight.x},${bankInnerRight.y} ${bankOuterRight.x},${bankOuterRight.y} ${fillRight.x},${fillRight.y}`} />
           <line x1={bankOuterLeft.x} y1={bankOuterLeft.y} x2={bankInnerLeft.x} y2={bankInnerLeft.y} />
           {ditchSvg}
 
           {/* Trench (Hố móng) */}
           <polyline points={`${trenchTopLeft.x},${trenchTopLeft.y} ${trenchLeftBottom.x},${trenchLeftBottom.y} ${dlotLeftBottom.x},${dlotLeftBottom.y} ${dlotRightBottom.x},${dlotRightBottom.y} ${trenchRightBottom.x},${trenchRightBottom.y} ${trenchTopRight.x},${trenchTopRight.y}`} stroke="#b45309" strokeWidth="1" strokeDasharray="4 3" />
-          
+
           {/* Trench cut slope triangle (MDAO1) */}
-          <g transform={`translate(${trenchLeftBottom.x - (trenchLeftBottom.y - bankOuterLeft.y)/2 * params.MDAO1}, ${(trenchLeftBottom.y + bankOuterLeft.y)/2})`}>
+          <g transform={`translate(${trenchLeftBottom.x - (trenchLeftBottom.y - bankOuterLeft.y) / 2 * params.MDAO1}, ${(trenchLeftBottom.y + bankOuterLeft.y) / 2})`}>
             <polyline points={`${-params.MDAO1 * 20},${-20} ${-params.MDAO1 * 20},0 0,0`} strokeWidth="1" />
             <text x={-params.MDAO1 * 20 - 5} y={-8} fill="#854d0e" fontSize="9" stroke="none" textAnchor="end">1</text>
             <text x={-params.MDAO1 * 10} y={10} fill="#854d0e" fontSize="9" stroke="none" textAnchor="middle">{params.MDAO1}</text>
@@ -244,7 +247,7 @@ export default function ParametricModule({
           <polyline points={`${(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale},${(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) - 1 * scale} ${(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale},${params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y} ${params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x},${params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y}`} strokeWidth="1" />
           <text x={(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale - 10} y={(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) - 0.5 * scale + 5} fill="#854d0e" fontSize="10" stroke="none" textAnchor="end">1</text>
           <text x={(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - 0.5 * params.MDAO2 * scale} y={(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) + 12} fill="#854d0e" fontSize="10" stroke="none" textAnchor="middle">{params.MDAO2}</text>
-          
+
           {/* Fill slope triangle (MDAP) */}
           <polyline points={`${bankOuterRight.x + params.MDAP * scale},${bankOuterRight.y + 1 * scale} ${bankOuterRight.x + params.MDAP * scale},${bankOuterRight.y} ${bankOuterRight.x},${bankOuterRight.y}`} strokeWidth="1" />
           <text x={bankOuterRight.x + params.MDAP * scale + 10} y={bankOuterRight.y + 0.5 * scale + 5} fill="#854d0e" fontSize="10" stroke="none" textAnchor="start">1</text>
@@ -253,7 +256,7 @@ export default function ParametricModule({
           {/* DTM lines (Đường tự nhiên) */}
           <line x1={cutLeftFinal.x - 40} y1={cutLeftFinal.y} x2={cutLeftFinal.x + 10} y2={cutLeftFinal.y} strokeDasharray="5,5" strokeWidth="1" />
           <text x={cutLeftFinal.x - 45} y={cutLeftFinal.y + 4} fill="#854d0e" fontSize="11" stroke="none" textAnchor="end">DTM</text>
-          
+
           <line x1={fillRight.x - 10} y1={fillRight.y} x2={fillRight.x + 40} y2={fillRight.y} strokeDasharray="5,5" strokeWidth="1" />
           <text x={fillRight.x + 45} y={fillRight.y + 4} fill="#854d0e" fontSize="11" stroke="none" textAnchor="start">DTM</text>
         </g>
@@ -295,7 +298,7 @@ export default function ParametricModule({
           <button onClick={applyToAll} className="text-blue-600 text-[11px] hover:underline">Áp dụng cho tất cả</button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          
+
           <div className="space-y-3">
             <select
               value={selectedSegmentIdx}
@@ -347,7 +350,7 @@ export default function ParametricModule({
               </label>
             </div>
           </div>
-          
+
           <div className="w-full h-px bg-slate-100"></div>
 
           <div className="space-y-3">
@@ -380,7 +383,7 @@ export default function ParametricModule({
 
           <div className="space-y-3">
             <h4 className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Tùy chọn phụ trợ</h4>
-            
+
             <label className="flex items-center gap-3 cursor-pointer">
               <div className="relative inline-flex items-center">
                 <input type="checkbox" className="sr-only peer" checked={params.coRanhThoatNuoc} onChange={e => handleParamChange('coRanhThoatNuoc', e.target.checked, false)} />
@@ -388,7 +391,7 @@ export default function ParametricModule({
               </div>
               <span className="text-[13px] font-medium text-slate-700">Có rãnh thoát nước</span>
             </label>
-            
+
             {params.coRanhThoatNuoc && (
               <div className="grid grid-cols-3 gap-2 pl-4 border-l-2 border-slate-200 ml-2 mt-2">
                 <label className="text-[11px] text-slate-700 flex flex-col gap-1">
@@ -413,7 +416,7 @@ export default function ParametricModule({
               </div>
               <span className="text-[13px] font-medium text-slate-700">Trồng cỏ bảo vệ mái</span>
             </label>
-            
+
             <label className="flex items-center gap-3 cursor-pointer mt-3">
               <div className="relative inline-flex items-center">
                 <input type="checkbox" className="sr-only peer" checked={params.coNgamMong} onChange={e => handleParamChange('coNgamMong', e.target.checked, false)} />
@@ -421,6 +424,23 @@ export default function ParametricModule({
               </div>
               <span className="text-[13px] font-medium text-slate-700">Có ngàm móng</span>
             </label>
+
+            <label className="flex items-center gap-3 cursor-pointer mt-3">
+              <div className="relative inline-flex items-center">
+                <input type="checkbox" className="sr-only peer" checked={params.coBocThaoMoc} onChange={e => handleParamChange('coBocThaoMoc', e.target.checked, false)} />
+                <div className="w-7 h-3.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1.5px] after:left-[1.5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-amber-600"></div>
+              </div>
+              <span className="text-[13px] font-medium text-slate-700">Bóc thảo mộc (đắp nền)</span>
+            </label>
+
+            {params.coBocThaoMoc && (
+              <div className="pl-4 border-l-2 border-slate-200 ml-2 mt-2">
+                <label className="text-[11px] text-slate-700 flex flex-col gap-1 w-1/3">
+                  <span className="text-slate-500">Chiều dày (m)</span>
+                  <input type="number" step="0.05" value={params.dayBocThaoMoc} onChange={e => handleParamChange('dayBocThaoMoc', e.target.value)} className="w-full border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500" />
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="w-full h-px bg-slate-100"></div>

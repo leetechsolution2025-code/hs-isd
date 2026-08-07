@@ -8,7 +8,8 @@ import * as XLSX from 'xlsx';
 import {
   saveLandmarkCoordinates, getLandmarkCoordinates, saveCanalStructures,
   getTerrainData,
-  saveTerrainData, getCanalStructures, getCategoriesByGroupName, saveProjectDesignConfig, getCompanyInfo
+  saveTerrainData, getCanalStructures, getCategoriesByGroupName, saveProjectDesignConfig, getCompanyInfo,
+  getCrossSectionData, saveCrossSectionData
 } from '@/app/actions';
 import { StructureIcon, StructureStatus } from './icons/StructureIcon';
 import { toast } from 'react-hot-toast';
@@ -428,10 +429,14 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
           getCategoriesByGroupName("Độ thấm kênh nhánh"),
           getCategoriesByGroupName("Độ thấm kênh chính"),
           getCategoriesByGroupName("Loại công trình trên kênh"),
-          getTerrainData(project.id)
-        ]).then(([coords, structures, branchPermCats, mainPermCats, structureCats, terrainRows]) => {
+          getTerrainData(project.id),
+          getCrossSectionData(project.id)
+        ]).then(([coords, structures, branchPermCats, mainPermCats, structureCats, terrainRows, crossSectionRows]) => {
           if (terrainRows && terrainRows.length > 0) {
             setTerrainData(terrainRows);
+          }
+          if (crossSectionRows && crossSectionRows.length > 0) {
+            setTerrainStakes(crossSectionRows);
           }
           if (coords && coords.length > 0) {
             setRawImportedPoints(coords);
@@ -478,7 +483,6 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
               if (config.controlElevationValue !== undefined) setControlElevationValue(config.controlElevationValue);
               if (config.maintainWaterLevel !== undefined) setMaintainWaterLevel(config.maintainWaterLevel);
               if (config.crossSectionParams !== undefined) setCrossSectionParams(config.crossSectionParams);
-              if (config.terrainStakes !== undefined) setTerrainStakes(config.terrainStakes);
             } catch (e) {
               console.error("Failed to parse design config", e);
             }
@@ -573,21 +577,21 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
       controlElevationType,
       controlElevationValue,
       maintainWaterLevel,
-      crossSectionParams,
-      terrainStakes
+      crossSectionParams
     };
 
-    const [resLandmark, resCanal, resConfig] = await Promise.all([
+    const [resLandmark, resCanal, resConfig, resCrossSection] = await Promise.all([
       saveLandmarkCoordinates(project.id, importedPoints),
       saveCanalStructures(project.id, canalStructures),
-      saveProjectDesignConfig(project.id, JSON.stringify(configData))
+      saveProjectDesignConfig(project.id, JSON.stringify(configData)),
+      saveCrossSectionData(project.id, terrainStakes)
     ]);
     setIsSaving(false);
-    if (resLandmark.success && resCanal.success && resConfig.success) {
+    if (resLandmark.success && resCanal.success && resConfig.success && resCrossSection.success) {
       toast.success('Đã lưu dữ liệu dự án thành công!');
       onSuccess?.();
     } else {
-      toast.error('Có lỗi xảy ra khi lưu: ' + (resLandmark.error || resCanal.error || resConfig.error));
+      toast.error('Có lỗi xảy ra khi lưu: ' + (resLandmark.error || resCanal.error || resConfig.error || resCrossSection?.error));
     }
   };
 

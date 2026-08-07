@@ -55,7 +55,7 @@ export default function TerrainDataOffcanvas({
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
           const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-          
+
           parsedData = json.slice(1).filter(row => row.length > 0).map(row => ({
             tenMoc: row[0] || '',
             lyTrinh: formatNumber(row[1]),
@@ -65,9 +65,9 @@ export default function TerrainDataOffcanvas({
         } else if (file.name.endsWith('.txt')) {
           const text = result as string;
           const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-          
+
           const startIndex = lines[0].toLowerCase().includes('tên') || lines[0].toLowerCase().includes('mốc') ? 1 : 0;
-          
+
           parsedData = lines.slice(startIndex).map(line => {
             const cols = line.split(/[\t,;]+|\s{2,}/);
             return {
@@ -92,7 +92,7 @@ export default function TerrainDataOffcanvas({
     } else {
       reader.readAsText(file);
     }
-    
+
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -125,16 +125,16 @@ export default function TerrainDataOffcanvas({
 
   return (
     <>
-      <div 
+      <div
         className="fixed inset-0 bg-slate-900/40 z-[4000] backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      
+
       <div className={`fixed top-0 right-0 bottom-0 w-[420px] bg-white z-[4001] shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-bold text-lg text-slate-800">Dữ liệu địa hình</h2>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
           >
@@ -190,7 +190,7 @@ export default function TerrainDataOffcanvas({
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-slate-500">
               <p className="text-center mb-4">Chưa có dữ liệu địa hình.</p>
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium text-sm rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
               >
@@ -203,10 +203,10 @@ export default function TerrainDataOffcanvas({
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
             accept=".txt, .xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/plain"
             onChange={handleFileUpload}
           />
@@ -234,15 +234,15 @@ export default function TerrainDataOffcanvas({
             </>
           ) : (
             <>
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium text-sm rounded-lg hover:bg-slate-50 transition-colors w-1/2 shadow-sm"
               >
                 <Upload size={16} />
                 Chọn tệp
               </button>
-              
-              <button 
+
+              <button
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-700 transition-colors w-1/2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={terrainData.length === 0}
                 onClick={() => onUpdate && onUpdate(terrainData)}
@@ -256,13 +256,13 @@ export default function TerrainDataOffcanvas({
       </div>
 
       <ConfirmDialog
-        isOpen={isConfirmDeleteOpen}
-        onClose={() => setIsConfirmDeleteOpen(false)}
+        open={isConfirmDeleteOpen}
+        onCancel={() => setIsConfirmDeleteOpen(false)}
         onConfirm={handleDeleteSelected}
         title="Xoá dữ liệu địa hình"
         message={`Bạn có chắc muốn xoá ${selectedRows.size} dòng đã chọn không? Thao tác này không thể hoàn tác.`}
-        confirmText="Xoá"
-        confirmVariant="danger"
+        confirmLabel="Xoá"
+        variant="danger"
       />
     </>
   )
