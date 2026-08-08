@@ -399,7 +399,13 @@ export default function TerrainCrossSectionView({
         const y_end = getTerrainElev(trenchTopLeft.x);
         trueExcavationPts.push({ x: trenchTopLeft.x, y: y_end - depth });
       } else {
-        trueExcavationPts.push(trenchTopLeft);
+        trueExcavationPts.push({ x: cutLeftFinal.x, y: cutLeftFinal.y });
+        stake.points.forEach(p => {
+          if (p.offset > cutLeftFinal.x && p.offset < trenchTopLeft.x) {
+            trueExcavationPts.push({ x: p.offset, y: p.elevation });
+          }
+        });
+        trueExcavationPts.push({ x: trenchTopLeft.x, y: getTerrainElev(trenchTopLeft.x) });
       }
     }
     trueExcavationPts.push(trenchLeftBottom, dlotLeftBottom, dlotRightBottom, trenchRightBottom);
@@ -430,7 +436,13 @@ export default function TerrainCrossSectionView({
         trueExcavationPts.push({ x: fillRight.x, y: y_end - depth });
         trueExcavationPts.push({ x: fillRight.x, y: y_end });
       } else {
-        trueExcavationPts.push(trenchTopRight);
+        trueExcavationPts.push({ x: trenchTopRight.x, y: getTerrainElev(trenchTopRight.x) });
+        stake.points.forEach(p => {
+          if (p.offset > trenchTopRight.x && p.offset < fillRight.x) {
+            trueExcavationPts.push({ x: p.offset, y: p.elevation });
+          }
+        });
+        trueExcavationPts.push({ x: fillRight.x, y: fillRight.y });
       }
     }
 
@@ -485,15 +497,53 @@ export default function TerrainCrossSectionView({
     // ----------------------------------------------------------------
     const cutoutPolyStr = cutoutPoints.map(p => `${toSvgX(p.x)},${toSvgY(p.y)}`).join(' ');
 
-    const calcPolygonArea = (points: { x: number, y: number }[]) => {
+    const calcExcavationArea = (excavPts: { x: number, y: number }[]) => {
       let area = 0;
-      for (let i = 0; i < points.length; i++) {
-        const j = (i + 1) % points.length;
-        area += points[i].x * points[j].y - points[j].x * points[i].y;
+      for (let i = 0; i < excavPts.length - 1; i++) {
+        const p1 = excavPts[i];
+        const p2 = excavPts[i + 1];
+        if (p1.x >= p2.x) continue;
+
+        const xs = [p1.x];
+        for (const tp of stake.points) {
+          if (tp.offset > p1.x && tp.offset < p2.x) {
+            xs.push(tp.offset);
+          }
+        }
+        xs.push(p2.x);
+
+        for (let j = 0; j < xs.length - 1; j++) {
+          const xa = xs[j];
+          const xb = xs[j + 1];
+          if (xa === xb) continue;
+
+          const ya_des = p1.y + (p2.y - p1.y) * (xa - p1.x) / (p2.x - p1.x);
+          const yb_des = p1.y + (p2.y - p1.y) * (xb - p1.x) / (p2.x - p1.x);
+
+          const ya_ter = getTerrainElev(xa);
+          const yb_ter = getTerrainElev(xb);
+
+          const diff_a = ya_ter - ya_des;
+          const diff_b = yb_ter - yb_des;
+
+          if (diff_a >= 0 && diff_b >= 0) {
+            area += (diff_a + diff_b) * (xb - xa) / 2;
+          } else if (diff_a <= 0 && diff_b <= 0) {
+            continue;
+          } else {
+            const t = -diff_a / (diff_b - diff_a);
+            const x_cross = xa + t * (xb - xa);
+            if (diff_a > 0) {
+              area += diff_a * (x_cross - xa) / 2;
+            } else {
+              area += diff_b * (xb - x_cross) / 2;
+            }
+          }
+        }
       }
-      return Math.abs(area / 2);
+      return area;
     };
-    const S_dao = calcPolygonArea(cutoutPoints);
+    const S_dao = calcExcavationArea(trueExcavationPts);
 
     const terrainPts = stake.points.map(p => `${toSvgX(p.offset)},${toSvgY(p.elevation)}`).join(' ');
 
