@@ -76,6 +76,7 @@ export default function CrossSectionDesignWorkspace({
   const [selectedStakeIdx, setSelectedStakeIdx] = useState<number>(0);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const [showCanal, setShowCanal] = useState<boolean>(true);
+  const [showPoints, setShowPoints] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,6 +164,7 @@ export default function CrossSectionDesignWorkspace({
                     crossSectionParams={crossSectionParams}
                     showOverlay={showOverlay}
                     showCanal={showCanal}
+                    showPoints={showPoints}
                   />
                 )}
               </div>
@@ -251,6 +253,19 @@ export default function CrossSectionDesignWorkspace({
                         className="sr-only peer"
                         checked={showCanal}
                         onChange={(e) => setShowCanal(e.target.checked)}
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-xs font-medium text-slate-700">Hiển thị điểm</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={showPoints}
+                        onChange={(e) => setShowPoints(e.target.checked)}
                       />
                       <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
                     </label>

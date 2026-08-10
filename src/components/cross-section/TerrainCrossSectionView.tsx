@@ -10,6 +10,7 @@ interface TerrainCrossSectionViewProps {
   crossSectionParams: Record<number, any>;
   showOverlay?: boolean;
   showCanal?: boolean;
+  showPoints?: boolean;
 }
 
 export default function TerrainCrossSectionView({
@@ -20,7 +21,8 @@ export default function TerrainCrossSectionView({
   nodeElevations,
   crossSectionParams,
   showOverlay = true,
-  showCanal = true
+  showCanal = true,
+  showPoints = true
 }: TerrainCrossSectionViewProps) {
   const [svgWidth, setSvgWidth] = useState(800);
   const [svgHeight, setSvgHeight] = useState(400);
@@ -365,6 +367,27 @@ export default function TerrainCrossSectionView({
       pointE = findIntersection(pointB, -1, 0);
     }
 
+    // Trường hợp cả hai điểm A, B đều cao hơn/bằng đường địa hình:
+    // Dựng đường thẳng đi qua điểm 3, 4 có hệ số dốc pMDAP đi xuống giao với địa hình tại điểm 5 và 6
+    // Từ 5 và 6 dựng đường thẳng dốc 1 đi xuống giao với đường bóc thảo mộc tại điểm 7 và 8
+    const dayBocThaoMoc = Number(params.dayBocThaoMoc) || 0.2;
+    const isFullFill = !isALowerThanTerrain && !isBLowerThanTerrain;
+    let point5: { x: number; y: number } | null = null;
+    let point6: { x: number; y: number } | null = null;
+    let point7: { x: number; y: number } | null = null;
+    let point8: { x: number; y: number } | null = null;
+
+    if (isFullFill) {
+      point5 = findIntersection(bankOuterLeft, -pMDAP, -1);
+      point6 = findIntersection(bankOuterRight, pMDAP, -1);
+      if (point5) {
+        point7 = { x: point5.x + dayBocThaoMoc, y: point5.y - dayBocThaoMoc };
+      }
+      if (point6) {
+        point8 = { x: point6.x - dayBocThaoMoc, y: point6.y - dayBocThaoMoc };
+      }
+    }
+
     // Tính diện tích đa giác bằng công thức Shoelace (Gauss)
     const calculatePolygonArea = (pts: { x: number; y: number }[]): number => {
       if (pts.length < 3) return 0;
@@ -414,6 +437,76 @@ export default function TerrainCrossSectionView({
     }
 
     const S_dao_trang = calculatePolygonArea(excavationCutoutPoly);
+
+    // Diện tích bóc thảo mộc: Hình giới hạn bởi các điểm 5, 7, 8, 6, đường địa hình và đường bóc thảo mộc
+    const strippedPoly: { x: number; y: number }[] = [];
+    if (isFullFill && point5 && point6 && point7 && point8) {
+      strippedPoly.push(point5);
+      strippedPoly.push(point7);
+      stake.points
+        .filter(p => p.offset > point7.x && p.offset < point8.x)
+        .forEach(p => strippedPoly.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+      strippedPoly.push(point8);
+      strippedPoly.push(point6);
+      stake.points
+        .filter(p => p.offset > point5.x && p.offset < point6.x)
+        .slice()
+        .reverse()
+        .forEach(p => strippedPoly.push({ x: p.offset, y: p.elevation }));
+    }
+
+    const S_boc_thao_moc = calculatePolygonArea(strippedPoly);
+
+    // Đắp bờ và móng kênh (vùng màu vàng đắp hoàn toàn):
+    // Giới hạn bởi: 1, 3, 5, 7, đường bóc thảo mộc (7->8), 8, 6, 4, 2 và mép ngoài mặt cắt kênh nằm dưới điểm 1, 2
+    const fullEmbankmentPoly: { x: number; y: number }[] = [];
+    if (isFullFill && point5 && point6 && point7 && point8) {
+      fullEmbankmentPoly.push(bankInnerLeft);  // Điểm 1
+      fullEmbankmentPoly.push(bankOuterLeft);  // Điểm 3
+      fullEmbankmentPoly.push(point5);         // Điểm 5
+      fullEmbankmentPoly.push(point7);         // Điểm 7
+
+      // Đường bóc thảo mộc từ 7 đến 8
+      stake.points
+        .filter(p => p.offset > point7.x && p.offset < point8.x)
+        .forEach(p => fullEmbankmentPoly.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+
+      fullEmbankmentPoly.push(point8);         // Điểm 8
+      fullEmbankmentPoly.push(point6);         // Điểm 6
+      fullEmbankmentPoly.push(bankOuterRight); // Điểm 4
+      fullEmbankmentPoly.push(bankInnerRight); // Điểm 2
+
+      // Mép ngoài mặt cắt kênh nằm dưới điểm 2 và điểm 1
+      fullEmbankmentPoly.push(outerRightBottom);
+      fullEmbankmentPoly.push(concRightTop);
+      fullEmbankmentPoly.push(concRightBottom);
+      fullEmbankmentPoly.push(dlotRightBottom); // Điểm B
+      fullEmbankmentPoly.push(dlotLeftBottom);  // Điểm A
+      fullEmbankmentPoly.push(concLeftBottom);
+      fullEmbankmentPoly.push(concLeftTop);
+      fullEmbankmentPoly.push(outerLeftBottom);
+    }
+
+    const S_dap = calculatePolygonArea(fullEmbankmentPoly);
+
+    // Xác định 2 điểm giới hạn cắt bỏ đường địa hình giữa C-D, C-E, E-D, hoặc 5-6
+    let leftCutPoint: { x: number; y: number } | null = null;
+    if (intersectA) {
+      leftCutPoint = intersectA; // Điểm C
+    } else if (pointE && isBLowerThanTerrain) {
+      leftCutPoint = pointE;     // Điểm E khi B thấp hơn địa hình
+    } else if (isFullFill && point5) {
+      leftCutPoint = point5;     // Điểm 5 khi đắp toàn bộ
+    }
+
+    let rightCutPoint: { x: number; y: number } | null = null;
+    if (intersectB) {
+      rightCutPoint = intersectB; // Điểm D
+    } else if (pointE && isALowerThanTerrain) {
+      rightCutPoint = pointE;      // Điểm E khi A thấp hơn địa hình
+    } else if (isFullFill && point6) {
+      rightCutPoint = point6;      // Điểm 6 khi đắp toàn bộ
+    }
 
     let trenchTopLeft = trenchLeftBottom;
     if (getTerrainElev(trenchLeftBottom.x) > trenchLeftBottom.y) {
@@ -794,6 +887,35 @@ export default function TerrainCrossSectionView({
     }
     const terrainPts = extTerrainPts.map(p => `${toSvgX(p.offset)},${toSvgY(p.elevation)}`).join(' ');
 
+    // Xây dựng chuỗi điểm SVG cho đoạn địa hình bên trái và bên phải (bỏ hẳn đoạn giữa C và D)
+    let leftTerrainSvgPts = '';
+    let rightTerrainSvgPts = '';
+
+    if (leftCutPoint) {
+      const leftPts = extTerrainPts.filter(p => p.offset < leftCutPoint!.x);
+      leftPts.push({ offset: leftCutPoint.x, elevation: leftCutPoint.y });
+      leftTerrainSvgPts = ptsToSvg(leftPts.map(p => `${p.offset},${p.elevation}`).join(' '));
+    }
+
+    if (rightCutPoint) {
+      const rightPts = [{ offset: rightCutPoint.x, elevation: rightCutPoint.y }];
+      extTerrainPts.filter(p => p.offset > rightCutPoint!.x).forEach(p => rightPts.push(p));
+      rightTerrainSvgPts = ptsToSvg(rightPts.map(p => `${p.offset},${p.elevation}`).join(' '));
+    }
+
+    // Đường bóc hữu cơ / thảo mộc (hạ thấp đường địa hình xuống một khoảng dayBocThaoMoc, giới hạn chính xác từ Điểm 7 đến Điểm 8)
+    let strippedTerrainSvgPts = '';
+    if (isFullFill && point7 && point8) {
+      const strippedPts: { x: number; y: number }[] = [];
+      strippedPts.push(point7);
+      stake.points
+        .filter(p => p.offset > point7.x && p.offset < point8.x)
+        .forEach(p => strippedPts.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+      strippedPts.push(point8);
+
+      strippedTerrainSvgPts = ptsToSvg(strippedPts.map(p => `${p.x},${p.y}`).join(' '));
+    }
+
     const firstPt = extTerrainPts[0];
     const lastPt = extTerrainPts[extTerrainPts.length - 1];
     const baseY = margin.top + drawH;
@@ -904,6 +1026,18 @@ export default function TerrainCrossSectionView({
         {/* Terrain fill (original terrain) */}
         <polygon points={terrainFill} fill="#d4c5a0" fillOpacity="0.4" clipPath="url(#drawArea)" />
 
+        {/* Full Embankment Area fill (Vùng đắp hoàn toàn màu vàng) */}
+        {showOverlay && isFullFill && fullEmbankmentPoly.length > 0 && (
+          <polygon
+            points={ptsToSvg(fullEmbankmentPoly.map(p => `${p.x},${p.y}`).join(' '))}
+            fill="#fef08a"
+            fillOpacity="0.85"
+            stroke="#eab308"
+            strokeWidth="1"
+            clipPath="url(#drawArea)"
+          />
+        )}
+
         {/* Excavation Earth Area (Cutout filled with white) bounded by C-A-B-D and terrain */}
         {excavationCutoutPoly.length > 0 && (
           <polygon
@@ -913,8 +1047,26 @@ export default function TerrainCrossSectionView({
           />
         )}
 
-        {/* Terrain line (Original intact terrain) */}
-        <polyline points={terrainPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />
+        {/* Terrain line: Bỏ hẳn đoạn địa hình ở giữa hai điểm C và D (hoặc C-E, E-D) */}
+        {leftCutPoint || rightCutPoint ? (
+          <>
+            {leftTerrainSvgPts && <polyline points={leftTerrainSvgPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />}
+            {rightTerrainSvgPts && <polyline points={rightTerrainSvgPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />}
+          </>
+        ) : (
+          <polyline points={terrainPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />
+        )}
+
+        {/* Stripped terrain line (bóc thảo mộc) lowered by dayBocThaoMoc */}
+        {isFullFill && strippedTerrainSvgPts && (
+          <polyline
+            points={strippedTerrainSvgPts}
+            fill="none"
+            stroke="#92400e"
+            strokeWidth="2.5"
+            clipPath="url(#drawArea)"
+          />
+        )}
 
         {/* Grid lines */}
         {elevGrid.map(e => (
@@ -997,45 +1149,155 @@ export default function TerrainCrossSectionView({
           />
         )}
 
-        {/* Bottom corner points A (Left) and B (Right) */}
-        <g clipPath="url(#drawArea)">
-          {/* Point A (Bottom Left) */}
-          <circle cx={toSvgX(pointA.x)} cy={toSvgY(pointA.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-          <text x={toSvgX(pointA.x) - 6} y={toSvgY(pointA.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">A</text>
+        {/* Horizontal line 1 -> 3 (Left bank width BT_trai) */}
+        <line
+          x1={toSvgX(bankInnerLeft.x)} y1={toSvgY(bankInnerLeft.y)}
+          x2={toSvgX(bankOuterLeft.x)} y2={toSvgY(bankOuterLeft.y)}
+          stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+        />
 
-          {/* Point B (Bottom Right) */}
-          <circle cx={toSvgX(pointB.x)} cy={toSvgY(pointB.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-          <text x={toSvgX(pointB.x) + 6} y={toSvgY(pointB.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">B</text>
+        {/* Horizontal line 2 -> 4 (Right bank width BT_phai) */}
+        <line
+          x1={toSvgX(bankInnerRight.x)} y1={toSvgY(bankInnerRight.y)}
+          x2={toSvgX(bankOuterRight.x)} y2={toSvgY(bankOuterRight.y)}
+          stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+        />
 
-          {/* Point C (Intersection of left slope line with terrain) */}
-          {isALowerThanTerrain && intersectA && (
+        {/* Embankment slope line 3 -> 5 (left) */}
+        {point5 && (
+          <line
+            x1={toSvgX(bankOuterLeft.x)} y1={toSvgY(bankOuterLeft.y)}
+            x2={toSvgX(point5.x)} y2={toSvgY(point5.y)}
+            stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+          />
+        )}
+
+        {/* Embankment slope line 4 -> 6 (right) */}
+        {point6 && (
+          <line
+            x1={toSvgX(bankOuterRight.x)} y1={toSvgY(bankOuterRight.y)}
+            x2={toSvgX(point6.x)} y2={toSvgY(point6.y)}
+            stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+          />
+        )}
+
+        {/* Slope line 5 -> 7 (slope 1 to stripped terrain left) */}
+        {point5 && point7 && (
+          <line
+            x1={toSvgX(point5.x)} y1={toSvgY(point5.y)}
+            x2={toSvgX(point7.x)} y2={toSvgY(point7.y)}
+            stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+          />
+        )}
+
+        {/* Slope line 6 -> 8 (slope 1 to stripped terrain right) */}
+        {point6 && point8 && (
+          <line
+            x1={toSvgX(point6.x)} y1={toSvgY(point6.y)}
+            x2={toSvgX(point8.x)} y2={toSvgY(point8.y)}
+            stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+          />
+        )}
+
+        {/* Bottom corner points A, B, 1, 2, 3, 4, C, D, E, 5, 6, 7, 8 */}
+        {showPoints && (
+          <g clipPath="url(#drawArea)">
+            {/* Point A (Bottom Left) */}
+            <circle cx={toSvgX(pointA.x)} cy={toSvgY(pointA.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+            <text x={toSvgX(pointA.x) - 6} y={toSvgY(pointA.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">A</text>
+
+            {/* Point B (Bottom Right) */}
+            <circle cx={toSvgX(pointB.x)} cy={toSvgY(pointB.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+            <text x={toSvgX(pointB.x) + 6} y={toSvgY(pointB.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">B</text>
+
+            {/* Point 1 (Outer canal wall left at depth DBO) */}
+            <circle cx={toSvgX(bankInnerLeft.x)} cy={toSvgY(bankInnerLeft.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+            <text x={toSvgX(bankInnerLeft.x) + 6} y={toSvgY(bankInnerLeft.y) - 6} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">1</text>
+
+            {/* Point 2 (Outer canal wall right at depth DBO) */}
+            <circle cx={toSvgX(bankInnerRight.x)} cy={toSvgY(bankInnerRight.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+            <text x={toSvgX(bankInnerRight.x) - 6} y={toSvgY(bankInnerRight.y) - 6} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">2</text>
+
+            {/* Point 3 (Outer edge of left bank) */}
+            <circle cx={toSvgX(bankOuterLeft.x)} cy={toSvgY(bankOuterLeft.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+            <text x={toSvgX(bankOuterLeft.x) - 6} y={toSvgY(bankOuterLeft.y) - 6} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">3</text>
+
+            {/* Point 4 (Outer edge of right bank) */}
+            <circle cx={toSvgX(bankOuterRight.x)} cy={toSvgY(bankOuterRight.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+            <text x={toSvgX(bankOuterRight.x) + 6} y={toSvgY(bankOuterRight.y) - 6} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">4</text>
+
+            {/* Point C (Intersection of left slope line with terrain) */}
+            {isALowerThanTerrain && intersectA && (
+              <>
+                <circle cx={toSvgX(intersectA.x)} cy={toSvgY(intersectA.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(intersectA.x) - 6} y={toSvgY(intersectA.y) - 8} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">C</text>
+              </>
+            )}
+
+            {/* Point D (Intersection of right slope line with terrain) */}
+            {isBLowerThanTerrain && intersectB && (
+              <>
+                <circle cx={toSvgX(intersectB.x)} cy={toSvgY(intersectB.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(intersectB.x) + 6} y={toSvgY(intersectB.y) - 8} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">D</text>
+              </>
+            )}
+
+            {/* Point E (Intersection of horizontal line from lower A/B point with terrain) */}
+            {pointE && lowerPointForE && (
+              <>
+                <circle cx={toSvgX(pointE.x)} cy={toSvgY(pointE.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(pointE.x) + (lowerPointForE === pointA ? 8 : -8)} y={toSvgY(pointE.y) - 6} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor={lowerPointForE === pointA ? "start" : "end"}>E</text>
+              </>
+            )}
+
+            {/* Point 5 (Intersection of left embankment slope from 3 with terrain) */}
+            {point5 && (
+              <>
+                <circle cx={toSvgX(point5.x)} cy={toSvgY(point5.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(point5.x) - 6} y={toSvgY(point5.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">5</text>
+              </>
+            )}
+
+            {/* Point 6 (Intersection of right embankment slope from 4 with terrain) */}
+            {point6 && (
+              <>
+                <circle cx={toSvgX(point6.x)} cy={toSvgY(point6.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(point6.x) + 6} y={toSvgY(point6.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">6</text>
+              </>
+            )}
+
+            {/* Point 7 (Intersection of slope 1 from 5 with stripped terrain) */}
+            {point7 && (
+              <>
+                <circle cx={toSvgX(point7.x)} cy={toSvgY(point7.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(point7.x) - 6} y={toSvgY(point7.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">7</text>
+              </>
+            )}
+
+            {/* Point 8 (Intersection of slope 1 from 6 with stripped terrain) */}
+            {point8 && (
+              <>
+                <circle cx={toSvgX(point8.x)} cy={toSvgY(point8.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(point8.x) + 6} y={toSvgY(point8.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">8</text>
+              </>
+            )}
+          </g>
+        )}
+
+        {/* Info Legend (S đào, S đắp & S bóc thảo mộc area display) */}
+        <g transform={`translate(${margin.left + drawW - 170}, ${margin.top + 20})`}>
+          <rect
+            x="0" y="0"
+            width="155" height={isFullFill ? "76" : "32"}
+            fill="white" stroke="#cbd5e1" strokeWidth="1" rx="6" opacity="0.95"
+          />
+          <text x="12" y="21" fontSize="12" fill="#0f172a" fontWeight="700">S đào: {S_dao_trang.toFixed(2)} m²</text>
+          {isFullFill && (
             <>
-              <circle cx={toSvgX(intersectA.x)} cy={toSvgY(intersectA.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-              <text x={toSvgX(intersectA.x) - 6} y={toSvgY(intersectA.y) - 8} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">C</text>
+              <text x="12" y="41" fontSize="12" fill="#ca8a04" fontWeight="700">S đắp: {S_dap.toFixed(2)} m²</text>
+              <text x="12" y="61" fontSize="12" fill="#92400e" fontWeight="700">S bóc TM: {S_boc_thao_moc.toFixed(2)} m²</text>
             </>
           )}
-
-          {/* Point D (Intersection of right slope line with terrain) */}
-          {isBLowerThanTerrain && intersectB && (
-            <>
-              <circle cx={toSvgX(intersectB.x)} cy={toSvgY(intersectB.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-              <text x={toSvgX(intersectB.x) + 6} y={toSvgY(intersectB.y) - 8} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">D</text>
-            </>
-          )}
-
-          {/* Point E (Intersection of horizontal line from lower A/B point with terrain) */}
-          {pointE && lowerPointForE && (
-            <>
-              <circle cx={toSvgX(pointE.x)} cy={toSvgY(pointE.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-              <text x={toSvgX(pointE.x) + (lowerPointForE === pointA ? 8 : -8)} y={toSvgY(pointE.y) - 6} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor={lowerPointForE === pointA ? "start" : "end"}>E</text>
-            </>
-          )}
-        </g>
-
-        {/* Info Legend (S đào area display) */}
-        <g transform={`translate(${margin.left + drawW - 145}, ${margin.top + 20})`}>
-          <rect x="0" y="0" width="130" height="32" fill="white" stroke="#cbd5e1" strokeWidth="1" rx="6" opacity="0.95" />
-          <text x="12" y="21" fontSize="13" fill="#0f172a" fontWeight="700">S đào: {S_dao_trang.toFixed(2)} m²</text>
         </g>
 
         {/* Elevation axis labels (right) */}
