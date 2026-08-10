@@ -489,6 +489,11 @@ export default function TerrainCrossSectionView({
 
     const S_dap = calculatePolygonArea(fullEmbankmentPoly);
 
+    // L trồng cỏ = tổng chiều dài các mái đắp bờ kênh (đoạn 3->5 và 4->6)
+    const L_35 = point5 ? Math.sqrt(Math.pow(point5.x - bankOuterLeft.x, 2) + Math.pow(point5.y - bankOuterLeft.y, 2)) : 0;
+    const L_46 = point6 ? Math.sqrt(Math.pow(point6.x - bankOuterRight.x, 2) + Math.pow(point6.y - bankOuterRight.y, 2)) : 0;
+    const L_trong_co = L_35 + L_46;
+
     // Xác định 2 điểm giới hạn cắt bỏ đường địa hình giữa C-D, C-E, E-D, hoặc 5-6
     let leftCutPoint: { x: number; y: number } | null = null;
     if (intersectA) {
@@ -522,7 +527,7 @@ export default function TerrainCrossSectionView({
     let isInsideTrenchLeft = (bankElevLeft <= trenchTopLeft.y && x_trench_left_top < bankOuterLeft.x);
 
     let test_bank_x_l = Math.min(bankOuterLeft.x, x_trench_left_top);
-    let isLeftCut = (getTerrainElev(test_bank_x_l) > bankElevLeft);
+    let isLeftCut = (getTerrainElev(bankOuterLeft.x) > bankElevLeft);
     let hasDitchLeft = false;
 
     if (isLeftCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
@@ -536,13 +541,7 @@ export default function TerrainCrossSectionView({
 
       if (getTerrainElev(potential_ditch_end_x) > bankElevLeft) {
         hasDitchLeft = true;
-        bankOuterLeft.x = potential_bank_x;
       }
-    }
-
-    if (!hasDitchLeft && isLeftCut && pMDAO1 > 0) {
-      bankOuterLeft.x = Math.min(bankOuterLeft.x, x_trench_left_top);
-      isLeftCut = (getTerrainElev(bankOuterLeft.x) > bankElevLeft);
     }
 
     const x_trench_right_top = trenchRightBottom.x + (bankElevRight - trenchRightBottom.y) * pMDAO1;
@@ -563,13 +562,7 @@ export default function TerrainCrossSectionView({
 
       if (getTerrainElev(potential_ditch_end_x) > bankElevRight) {
         hasDitchRight = true;
-        bankOuterRight.x = potential_bank_x;
       }
-    }
-
-    if (!hasDitchRight && isRightCut && pMDAO1 > 0) {
-      bankOuterRight.x = Math.max(bankOuterRight.x, x_trench_right_top);
-      isRightCut = (getTerrainElev(bankOuterRight.x) > bankElevRight);
     }
 
     let ditchTopLeft = bankOuterLeft;
@@ -1284,11 +1277,11 @@ export default function TerrainCrossSectionView({
           </g>
         )}
 
-        {/* Info Legend (S đào, S đắp & S bóc thảo mộc area display) */}
+        {/* Info Legend (S đào, S đắp, S bóc thảo mộc & L trồng cỏ area display) */}
         <g transform={`translate(${margin.left + drawW - 170}, ${margin.top + 20})`}>
           <rect
             x="0" y="0"
-            width="155" height={isFullFill ? "76" : "32"}
+            width="155" height={isFullFill ? "96" : "32"}
             fill="white" stroke="#cbd5e1" strokeWidth="1" rx="6" opacity="0.95"
           />
           <text x="12" y="21" fontSize="12" fill="#0f172a" fontWeight="700">S đào: {S_dao_trang.toFixed(2)} m²</text>
@@ -1296,6 +1289,7 @@ export default function TerrainCrossSectionView({
             <>
               <text x="12" y="41" fontSize="12" fill="#ca8a04" fontWeight="700">S đắp: {S_dap.toFixed(2)} m²</text>
               <text x="12" y="61" fontSize="12" fill="#92400e" fontWeight="700">S bóc TM: {S_boc_thao_moc.toFixed(2)} m²</text>
+              <text x="12" y="81" fontSize="12" fill="#16a34a" fontWeight="700">L trồng cỏ: {L_trong_co.toFixed(2)} m</text>
             </>
           )}
         </g>
@@ -1323,11 +1317,18 @@ export default function TerrainCrossSectionView({
 
 
 
-        {/* Terrain points dots */}
-        {stake.points.map((p, i) => (
-          <circle key={i} cx={toSvgX(p.offset)} cy={toSvgY(p.elevation)} r="2"
-            fill="#92400e" clipPath="url(#drawArea)" />
-        ))}
+        {/* Terrain points dots (Ẩn các điểm mốc nằm trong phạm vi đào/đắp giữa leftCutPoint và rightCutPoint) */}
+        {stake.points
+          .filter(p => {
+            if (leftCutPoint && rightCutPoint) {
+              return p.offset < leftCutPoint.x || p.offset > rightCutPoint.x;
+            }
+            return true;
+          })
+          .map((p, i) => (
+            <circle key={i} cx={toSvgX(p.offset)} cy={toSvgY(p.elevation)} r="2"
+              fill="#92400e" clipPath="url(#drawArea)" />
+          ))}
       </svg>
     );
   };
