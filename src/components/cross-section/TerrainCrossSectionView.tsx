@@ -8,6 +8,8 @@ interface TerrainCrossSectionViewProps {
   flowNodes: any[];
   nodeElevations: any;
   crossSectionParams: Record<number, any>;
+  showOverlay?: boolean;
+  showCanal?: boolean;
 }
 
 export default function TerrainCrossSectionView({
@@ -16,7 +18,9 @@ export default function TerrainCrossSectionView({
   segmentHydraulicResults,
   flowNodes,
   nodeElevations,
-  crossSectionParams
+  crossSectionParams,
+  showOverlay = true,
+  showCanal = true
 }: TerrainCrossSectionViewProps) {
   const [svgWidth, setSvgWidth] = useState(800);
   const [svgHeight, setSvgHeight] = useState(400);
@@ -194,57 +198,222 @@ export default function TerrainCrossSectionView({
     const pMDAO2 = Number(params.MDAO2) || 0;
     const pMDAP = Number(params.MDAP) || 0;
     const getTerrainElev = (x: number): number => {
-      if (x <= stake.points[0].offset) return stake.points[0].elevation;
-      if (x >= stake.points[stake.points.length - 1].offset) return stake.points[stake.points.length - 1].elevation;
+      if (!stake.points || stake.points.length === 0) return 0;
+      if (stake.points.length === 1) return stake.points[0].elevation;
+
+      if (x <= stake.points[0].offset) {
+        const pA = stake.points[0];
+        const pB = stake.points[1];
+        const slope = (pB.offset === pA.offset) ? 0 : (pB.elevation - pA.elevation) / (pB.offset - pA.offset);
+        return pA.elevation + slope * (x - pA.offset);
+      }
+      if (x >= stake.points[stake.points.length - 1].offset) {
+        const pA = stake.points[stake.points.length - 2];
+        const pB = stake.points[stake.points.length - 1];
+        const slope = (pB.offset === pA.offset) ? 0 : (pB.elevation - pA.elevation) / (pB.offset - pA.offset);
+        return pB.elevation + slope * (x - pB.offset);
+      }
       for (let i = 0; i < stake.points.length - 1; i++) {
         const pA = stake.points[i];
         const pB = stake.points[i + 1];
         if (x >= pA.offset && x <= pB.offset) {
-          const ratio = (x - pA.offset) / (pB.offset - pA.offset);
+          const ratio = (pB.offset === pA.offset) ? 0 : (x - pA.offset) / (pB.offset - pA.offset);
           return pA.elevation + ratio * (pB.elevation - pA.elevation);
         }
       }
       return stake.points[0].elevation;
     };
 
+    /**
+     * Tìm giao điểm giữa tia thiết kế và địa hình bằng phương pháp đại số thuần túy.
+     *
+     * Tia thiết kế: đi từ startPt theo hướng (vx, vy).
+     *   Phương trình tia: x = startPt.x + t*vx, y = startPt.y + t*vy  (t > 0)
+     *   => Nếu vx != 0: y = startPt.y + (vy/vx)*(x - startPt.x)
+     *      Nếu vx == 0: đường thẳng đứng x = startPt.x
+     *
+     * Mỗi đoạn địa hình: (pA, pB) với pA.offset < pB.offset.
+     *   Phương trình: y = pA.elev + slope_seg*(x - pA.offset)
+     *   với slope_seg = (pB.elev - pA.elev)/(pB.offset - pA.offset)
+     *
+     * Giải hệ 2 phương trình, tìm x giao điểm, kiểm tra x có nằm trong
+     * đoạn địa hình không (hoặc trong đoạn kéo dài nếu không tìm được).
+     * Cuối cùng kiểm tra t > 0 để đảm bảo giao điểm nằm đúng hướng tia.
+     */
     const findIntersection = (startPt: { x: number, y: number }, vx: number, vy: number): { x: number, y: number } => {
-      let closestPt = null;
-      let minT = Infinity;
+      // Xây dựng danh sách đoạn địa hình, bao gồm phần kéo dài 2 đầu theo đúng độ dốc tự nhiên
+      type Seg = { x1: number; y1: number; x2: number; y2: number };
+      const segs: Seg[] = [];
 
-      const extendedPoints = [
-        { offset: stake.points[0].offset - 1000, elevation: stake.points[0].elevation },
-        ...stake.points,
-        { offset: stake.points[stake.points.length - 1].offset + 1000, elevation: stake.points[stake.points.length - 1].elevation }
-      ];
+      if (stake.points.length >= 2) {
+        // Kéo dài đoạn đầu ra phía trái
+        const pA0 = stake.points[0], pA1 = stake.points[1];
+        const s0 = (pA1.elevation - pA0.elevation) / (pA1.offset - pA0.offset);
+        segs.push({ x1: pA0.offset - 1e6, y1: pA0.elevation - 1e6 * s0, x2: pA0.offset, y2: pA0.elevation });
 
-      for (let i = 0; i < extendedPoints.length - 1; i++) {
-        const pA = extendedPoints[i];
-        const pB = extendedPoints[i + 1];
+        // Các đoạn địa hình thực
+        for (let i = 0; i < stake.points.length - 1; i++) {
+          segs.push({
+            x1: stake.points[i].offset, y1: stake.points[i].elevation,
+            x2: stake.points[i + 1].offset, y2: stake.points[i + 1].elevation
+          });
+        }
 
-        const x1 = startPt.x, y1 = startPt.y;
-        const x2 = startPt.x + vx, y2 = startPt.y + vy;
-        const x3 = pA.offset, y3 = pA.elevation;
-        const x4 = pB.offset, y4 = pB.elevation;
+        // Kéo dài đoạn cuối ra phía phải
+        const pN1 = stake.points[stake.points.length - 2], pN2 = stake.points[stake.points.length - 1];
+        const sN = (pN2.elevation - pN1.elevation) / (pN2.offset - pN1.offset);
+        segs.push({ x1: pN2.offset, y1: pN2.elevation, x2: pN2.offset + 1e6, y2: pN2.elevation + 1e6 * sN });
+      }
 
-        const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-        if (den === 0) continue;
+      let bestX = NaN, bestT = Infinity;
 
-        const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
-        const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
+      const sx = startPt.x, sy = startPt.y;
 
-        if (t > 0 && u >= 0 && u <= 1) {
-          if (t < minT) {
-            minT = t;
-            closestPt = { x: x1 + t * vx, y: y1 + t * vy };
+      for (const seg of segs) {
+        const { x1: ax, y1: ay, x2: bx, y2: by } = seg;
+        const segDx = bx - ax;
+        const segSlope = segDx === 0 ? null : (by - ay) / segDx; // null => đoạn thẳng đứng
+
+        let xi: number; // x giao điểm
+
+        if (vx === 0) {
+          // Tia thẳng đứng: x cố định = sx
+          xi = sx;
+          // Kiểm tra xi có trong đoạn [ax, bx]
+          if (xi < Math.min(ax, bx) - 1e-9 || xi > Math.max(ax, bx) + 1e-9) continue;
+          if (segSlope === null) continue; // cả 2 đều thẳng đứng => song song
+          const yi = ay + segSlope * (xi - ax);
+          // t = (yi - sy)/vy (vì vx=0)
+          if (vy === 0) continue;
+          const t = (yi - sy) / vy;
+          if (t > -1e-9 && t < bestT) { bestT = t; bestX = xi; }
+        } else if (segSlope === null) {
+          // Đoạn địa hình thẳng đứng: x cố định = ax
+          xi = ax;
+          // t = (xi - sx)/vx
+          const t = (xi - sx) / vx;
+          if (t > -1e-9) {
+            const yi = sy + t * vy;
+            // Kiểm tra yi trong đoạn dọc [ay, by]
+            if (yi >= Math.min(ay, by) - 1e-9 && yi <= Math.max(ay, by) + 1e-9) {
+              if (t < bestT) { bestT = t; bestX = xi; }
+            }
           }
+        } else {
+          // Tia nghiêng + đoạn nghiêng
+          // Tia: y = sy + (vy/vx)*(x - sx)  => y = (vy/vx)*x + (sy - (vy/vx)*sx)
+          // Đoạn: y = ay + segSlope*(x - ax)  => y = segSlope*x + (ay - segSlope*ax)
+          const raySlope = vy / vx;
+          const slopeDiff = raySlope - segSlope;
+          if (Math.abs(slopeDiff) < 1e-12) continue; // song song
+          // raySlope*x + (sy - raySlope*sx) = segSlope*x + (ay - segSlope*ax)
+          // x*(raySlope - segSlope) = (ay - segSlope*ax) - (sy - raySlope*sx)
+          xi = ((ay - segSlope * ax) - (sy - raySlope * sx)) / slopeDiff;
+          // Kiểm tra xi trong đoạn địa hình [ax, bx] (có thể đảo chiều)
+          if (xi < Math.min(ax, bx) - 1e-9 || xi > Math.max(ax, bx) + 1e-9) continue;
+          const t = (xi - sx) / vx;
+          if (t > -1e-9 && t < bestT) { bestT = t; bestX = xi; }
         }
       }
-      if (closestPt) return closestPt;
-      return { x: startPt.x + vx * 10, y: startPt.y + vy * 10 };
+
+      if (!isNaN(bestX) && isFinite(bestT)) {
+        const yi = sy + bestT * vy;
+        return { x: bestX, y: yi };
+      }
+
+      // Fallback an toàn: chiếu thẳng đứng xuống địa hình tại startPt
+      return { x: sx, y: getTerrainElev(sx) };
     };
 
     const trenchLeftBottom = { x: outerLeftBottom.x - trenchExt, y: dlotLeftBottom.y };
     const trenchRightBottom = { x: outerRightBottom.x + trenchExt, y: dlotRightBottom.y };
+
+    // Nếu thấp hơn đường địa hình thì tịnh tiến điểm A sang trái, điểm B sang phải một đoạn bằng lưu không móng (B3)
+    const isALowerThanTerrain = getTerrainElev(dlotLeftBottom.x) > dlotLeftBottom.y;
+    const pointA = {
+      x: isALowerThanTerrain ? dlotLeftBottom.x - pB3 : dlotLeftBottom.x,
+      y: dlotLeftBottom.y
+    };
+
+    const isBLowerThanTerrain = getTerrainElev(dlotRightBottom.x) > dlotRightBottom.y;
+    const pointB = {
+      x: isBLowerThanTerrain ? dlotRightBottom.x + pB3 : dlotRightBottom.x,
+      y: dlotRightBottom.y
+    };
+
+    // Nếu điểm A thấp hơn đường địa hình: tạo đường thẳng đi qua A có hệ số dốc mái đào móng (pMDAO1) và tìm giao điểm với đường địa hình
+    let intersectA: { x: number; y: number } | null = null;
+    if (isALowerThanTerrain) {
+      intersectA = findIntersection(pointA, -pMDAO1, 1);
+    }
+
+    // Tương tự với điểm B: tạo đường thẳng đi qua B có hệ số dốc mái đào móng (pMDAO1) sang phải và tìm giao điểm với đường địa hình
+    let intersectB: { x: number; y: number } | null = null;
+    if (isBLowerThanTerrain) {
+      intersectB = findIntersection(pointB, pMDAO1, 1);
+    }
+
+    // Trường hợp 1 điểm (A hoặc B) thấp hơn địa hình, điểm kia cao hơn địa hình:
+    // Tạo đường nằm ngang từ điểm thấp hơn tới đường địa hình, giao điểm là điểm E
+    let pointE: { x: number; y: number } | null = null;
+    let lowerPointForE: { x: number; y: number } | null = null;
+    if (isALowerThanTerrain && !isBLowerThanTerrain) {
+      lowerPointForE = pointA;
+      pointE = findIntersection(pointA, 1, 0);
+    } else if (!isALowerThanTerrain && isBLowerThanTerrain) {
+      lowerPointForE = pointB;
+      pointE = findIntersection(pointB, -1, 0);
+    }
+
+    // Tính diện tích đa giác bằng công thức Shoelace (Gauss)
+    const calculatePolygonArea = (pts: { x: number; y: number }[]): number => {
+      if (pts.length < 3) return 0;
+      let area = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        area += pts[i].x * pts[j].y;
+        area -= pts[j].x * pts[i].y;
+      }
+      return Math.abs(area) / 2.0;
+    };
+
+    // Đất đào (vùng màu trắng): Hình giới hạn bởi C-A-B-D (hoặc C-A-E, E-B-D) và đường địa hình tự nhiên
+    const excavationCutoutPoly: { x: number; y: number }[] = [];
+
+    if (intersectA && intersectB) {
+      // Trường hợp cả A và B đều thấp hơn địa hình (C-A-B-D)
+      excavationCutoutPoly.push(intersectA); // Điểm C
+      excavationCutoutPoly.push(pointA);     // Điểm A
+      excavationCutoutPoly.push(pointB);     // Điểm B
+      excavationCutoutPoly.push(intersectB); // Điểm D
+      stake.points
+        .filter(p => p.offset > intersectA.x && p.offset < intersectB.x)
+        .slice()
+        .reverse()
+        .forEach(p => excavationCutoutPoly.push({ x: p.offset, y: p.elevation }));
+    } else if (isALowerThanTerrain && intersectA && pointE) {
+      // Điểm A thấp hơn, B cao hơn địa hình (C-A-E)
+      excavationCutoutPoly.push(intersectA); // Điểm C
+      excavationCutoutPoly.push(pointA);     // Điểm A
+      excavationCutoutPoly.push(pointE);     // Điểm E
+      stake.points
+        .filter(p => p.offset > intersectA.x && p.offset < pointE.x)
+        .slice()
+        .reverse()
+        .forEach(p => excavationCutoutPoly.push({ x: p.offset, y: p.elevation }));
+    } else if (isBLowerThanTerrain && intersectB && pointE) {
+      // Điểm B thấp hơn, A cao hơn địa hình (E-B-D)
+      excavationCutoutPoly.push(pointE);     // Điểm E
+      excavationCutoutPoly.push(pointB);     // Điểm B
+      excavationCutoutPoly.push(intersectB); // Điểm D
+      stake.points
+        .filter(p => p.offset > pointE.x && p.offset < intersectB.x)
+        .slice()
+        .reverse()
+        .forEach(p => excavationCutoutPoly.push({ x: p.offset, y: p.elevation }));
+    }
+
+    const S_dao_trang = calculatePolygonArea(excavationCutoutPoly);
 
     let trenchTopLeft = trenchLeftBottom;
     if (getTerrainElev(trenchLeftBottom.x) > trenchLeftBottom.y) {
@@ -352,12 +521,14 @@ export default function TerrainCrossSectionView({
     let cutLeftFinal;
     const x_F_l = ditchTopLeft.x, y_F_l = ditchTopLeft.y;
     const x_T_l = trenchLeftBottom.x, y_T_l = trenchLeftBottom.y;
+    let leftIntersectUnderground = false;
     if (isLeftCut) {
       cutLeftFinal = findIntersection(ditchTopLeft, -pMDAO2, 1);
     } else {
       const y_int_fill = (x_T_l - x_F_l + y_F_l * pMDAP + y_T_l * pMDAO1) / (pMDAO1 + pMDAP);
       if (y_int_fill >= y_T_l && y_int_fill <= trenchTopLeft.y && y_int_fill <= ditchTopLeft.y) {
         cutLeftFinal = { x: x_T_l - (y_int_fill - y_T_l) * pMDAO1, y: y_int_fill };
+        leftIntersectUnderground = true;
       } else {
         cutLeftFinal = findIntersection(ditchTopLeft, -pMDAP, -1);
       }
@@ -366,20 +537,24 @@ export default function TerrainCrossSectionView({
     let fillRight;
     const x_F_r = ditchTopRightRight.x, y_F_r = ditchTopRightRight.y;
     const x_T_r = trenchRightBottom.x, y_T_r = trenchRightBottom.y;
+    let rightIntersectUnderground = false;
     if (isRightCut) {
       fillRight = findIntersection(ditchTopRightRight, pMDAO2, 1);
     } else {
       const y_int_fill = (x_F_r - x_T_r + y_F_r * pMDAP + y_T_r * pMDAO1) / (pMDAO1 + pMDAP);
       if (y_int_fill >= y_T_r && y_int_fill <= trenchTopRight.y && y_int_fill <= bankOuterRight.y) {
         fillRight = { x: x_T_r + (y_int_fill - y_T_r) * pMDAO1, y: y_int_fill };
+        rightIntersectUnderground = true;
       } else {
         fillRight = findIntersection(bankOuterRight, pMDAP, -1);
       }
     }
 
     const trueExcavationPts: { x: number, y: number }[] = [];
+    const visualExcavationPts: { x: number, y: number }[] = [];
     if (isLeftCut) {
       trueExcavationPts.push(cutLeftFinal);
+      visualExcavationPts.push(cutLeftFinal);
       if (hasDitchLeft) {
         const hDitch = Number(params.HTN) || 0;
         const tDitch = Number(params.DTN) || 0;
@@ -388,33 +563,61 @@ export default function TerrainCrossSectionView({
           { x: ditchTopLeft.x, y: ditchTopLeft.y - hDitch - tDitch },
           { x: bankOuterLeft.x, y: bankOuterLeft.y - hDitch - tDitch }
         );
+        visualExcavationPts.push(
+          ditchTopLeft,
+          { x: ditchTopLeft.x, y: ditchTopLeft.y - hDitch - tDitch },
+          { x: bankOuterLeft.x, y: bankOuterLeft.y - hDitch - tDitch }
+        );
       } else {
         trueExcavationPts.push(bankOuterLeft);
+        visualExcavationPts.push(bankOuterLeft);
       }
     } else {
-      if (params.coBocThaoMoc) {
-        const depth = Number(params.dayBocThaoMoc) || 0;
-        const y_start = getTerrainElev(cutLeftFinal.x);
-        trueExcavationPts.push({ x: cutLeftFinal.x, y: y_start });
-        trueExcavationPts.push({ x: cutLeftFinal.x, y: y_start - depth });
-        stake.points.forEach(p => {
-          if (p.offset > cutLeftFinal.x && p.offset < trenchTopLeft.x) {
-            trueExcavationPts.push({ x: p.offset, y: p.elevation - depth });
-          }
-        });
-        const y_end = getTerrainElev(trenchTopLeft.x);
-        trueExcavationPts.push({ x: trenchTopLeft.x, y: y_end - depth });
+      if (leftIntersectUnderground) {
+        if (params.coBocThaoMoc) {
+          const depth = Number(params.dayBocThaoMoc) || 0;
+          trueExcavationPts.push({ x: cutLeftFinal.x, y: cutLeftFinal.y - depth });
+          visualExcavationPts.push({ x: cutLeftFinal.x, y: cutLeftFinal.y - depth });
+        } else {
+          trueExcavationPts.push({ x: cutLeftFinal.x, y: cutLeftFinal.y });
+          visualExcavationPts.push({ x: cutLeftFinal.x, y: cutLeftFinal.y });
+        }
       } else {
-        trueExcavationPts.push({ x: cutLeftFinal.x, y: cutLeftFinal.y });
-        stake.points.forEach(p => {
-          if (p.offset > cutLeftFinal.x && p.offset < trenchTopLeft.x) {
-            trueExcavationPts.push({ x: p.offset, y: p.elevation });
-          }
-        });
-        trueExcavationPts.push({ x: trenchTopLeft.x, y: getTerrainElev(trenchTopLeft.x) });
+        const minX = Math.min(cutLeftFinal.x, trenchTopLeft.x);
+        const maxX = Math.max(cutLeftFinal.x, trenchTopLeft.x);
+        const y_minX = minX === cutLeftFinal.x ? cutLeftFinal.y : getTerrainElev(trenchTopLeft.x);
+        const y_maxX = maxX === cutLeftFinal.x ? cutLeftFinal.y : getTerrainElev(trenchTopLeft.x);
+
+        if (params.coBocThaoMoc) {
+          const depth = Number(params.dayBocThaoMoc) || 0;
+          trueExcavationPts.push({ x: minX, y: y_minX - depth });
+          visualExcavationPts.push({ x: minX, y: y_minX - depth });
+          stake.points.forEach(p => {
+            if (p.offset > minX && p.offset < maxX) {
+              trueExcavationPts.push({ x: p.offset, y: p.elevation - depth });
+              visualExcavationPts.push({ x: p.offset, y: p.elevation - depth });
+            }
+          });
+          trueExcavationPts.push({ x: maxX, y: y_maxX - depth });
+          visualExcavationPts.push({ x: maxX, y: y_maxX - depth });
+        } else {
+          trueExcavationPts.push({ x: minX, y: y_minX });
+          stake.points.forEach(p => {
+            if (p.offset > minX && p.offset < maxX) {
+              trueExcavationPts.push({ x: p.offset, y: p.elevation });
+            }
+          });
+          trueExcavationPts.push({ x: maxX, y: y_maxX });
+          // Đường đào móng (fill case): cutLeftFinal → bankOuterLeft → bankInnerLeft → trenchLeftBottom
+          // bankInnerLeft cần có để đường đi theo mặt ngoài tường kết cấu (không cắt chéo)
+          visualExcavationPts.push(cutLeftFinal);
+          visualExcavationPts.push(bankOuterLeft);
+          visualExcavationPts.push(bankInnerLeft);
+        }
       }
     }
     trueExcavationPts.push(trenchLeftBottom, dlotLeftBottom, dlotRightBottom, trenchRightBottom);
+    visualExcavationPts.push(trenchLeftBottom, dlotLeftBottom, dlotRightBottom, trenchRightBottom);
     if (isRightCut) {
       if (hasDitchRight) {
         const hDitch = Number(params.HTN) || 0;
@@ -424,31 +627,59 @@ export default function TerrainCrossSectionView({
           { x: ditchTopRightRight.x, y: ditchTopRightRight.y - hDitch - tDitch },
           ditchTopRightRight
         );
+        visualExcavationPts.push(
+          { x: bankOuterRight.x, y: bankOuterRight.y - hDitch - tDitch },
+          { x: ditchTopRightRight.x, y: ditchTopRightRight.y - hDitch - tDitch },
+          ditchTopRightRight
+        );
       } else {
         trueExcavationPts.push(bankOuterRight);
+        visualExcavationPts.push(bankOuterRight);
       }
       trueExcavationPts.push(fillRight);
+      visualExcavationPts.push(fillRight);
     } else {
-      if (params.coBocThaoMoc) {
-        const depth = Number(params.dayBocThaoMoc) || 0;
-        const y_start = getTerrainElev(trenchTopRight.x);
-        trueExcavationPts.push({ x: trenchTopRight.x, y: y_start - depth });
-        stake.points.forEach(p => {
-          if (p.offset > trenchTopRight.x && p.offset < fillRight.x) {
-            trueExcavationPts.push({ x: p.offset, y: p.elevation - depth });
-          }
-        });
-        const y_end = getTerrainElev(fillRight.x);
-        trueExcavationPts.push({ x: fillRight.x, y: y_end - depth });
-        trueExcavationPts.push({ x: fillRight.x, y: y_end });
+      if (rightIntersectUnderground) {
+        if (params.coBocThaoMoc) {
+          const depth = Number(params.dayBocThaoMoc) || 0;
+          trueExcavationPts.push({ x: fillRight.x, y: fillRight.y - depth });
+          visualExcavationPts.push({ x: fillRight.x, y: fillRight.y - depth });
+        } else {
+          trueExcavationPts.push({ x: fillRight.x, y: fillRight.y });
+          visualExcavationPts.push({ x: fillRight.x, y: fillRight.y });
+        }
       } else {
-        trueExcavationPts.push({ x: trenchTopRight.x, y: getTerrainElev(trenchTopRight.x) });
-        stake.points.forEach(p => {
-          if (p.offset > trenchTopRight.x && p.offset < fillRight.x) {
-            trueExcavationPts.push({ x: p.offset, y: p.elevation });
-          }
-        });
-        trueExcavationPts.push({ x: fillRight.x, y: fillRight.y });
+        const minX = Math.min(trenchTopRight.x, fillRight.x);
+        const maxX = Math.max(trenchTopRight.x, fillRight.x);
+        const y_minX = minX === trenchTopRight.x ? getTerrainElev(trenchTopRight.x) : fillRight.y;
+        const y_maxX = maxX === trenchTopRight.x ? getTerrainElev(trenchTopRight.x) : fillRight.y;
+
+        if (params.coBocThaoMoc) {
+          const depth = Number(params.dayBocThaoMoc) || 0;
+          trueExcavationPts.push({ x: minX, y: y_minX - depth });
+          visualExcavationPts.push({ x: minX, y: y_minX - depth });
+          stake.points.forEach(p => {
+            if (p.offset > minX && p.offset < maxX) {
+              trueExcavationPts.push({ x: p.offset, y: p.elevation - depth });
+              visualExcavationPts.push({ x: p.offset, y: p.elevation - depth });
+            }
+          });
+          trueExcavationPts.push({ x: maxX, y: y_maxX - depth });
+          visualExcavationPts.push({ x: maxX, y: y_maxX - depth });
+        } else {
+          trueExcavationPts.push({ x: minX, y: y_minX });
+          stake.points.forEach(p => {
+            if (p.offset > minX && p.offset < maxX) {
+              trueExcavationPts.push({ x: p.offset, y: p.elevation });
+            }
+          });
+          trueExcavationPts.push({ x: maxX, y: y_maxX });
+          // Đường đào móng (fill case): trenchRightBottom → bankInnerRight → bankOuterRight → fillRight (trên địa hình)
+          // bankInnerRight cần có trong path để đường đi theo mặt ngoài tường, không bị cắt chéo
+          visualExcavationPts.push(bankInnerRight);
+          visualExcavationPts.push(bankOuterRight);
+          visualExcavationPts.push(fillRight);
+        }
       }
     }
 
@@ -551,10 +782,20 @@ export default function TerrainCrossSectionView({
     };
     const S_dao = calcExcavationArea(trueExcavationPts);
 
-    const terrainPts = stake.points.map(p => `${toSvgX(p.offset)},${toSvgY(p.elevation)}`).join(' ');
+    let extTerrainPts = [...stake.points];
+    if (stake.points.length > 1) {
+      const extLeftX = minOffset - 100;
+      const extRightX = maxOffset + 100;
+      extTerrainPts = [
+        { offset: extLeftX, elevation: getTerrainElev(extLeftX) },
+        ...stake.points,
+        { offset: extRightX, elevation: getTerrainElev(extRightX) }
+      ];
+    }
+    const terrainPts = extTerrainPts.map(p => `${toSvgX(p.offset)},${toSvgY(p.elevation)}`).join(' ');
 
-    const firstPt = stake.points[0];
-    const lastPt = stake.points[stake.points.length - 1];
+    const firstPt = extTerrainPts[0];
+    const lastPt = extTerrainPts[extTerrainPts.length - 1];
     const baseY = margin.top + drawH;
     const terrainFill = `${toSvgX(firstPt.offset)},${baseY} ` + terrainPts + ` ${toSvgX(lastPt.offset)},${baseY}`;
 
@@ -611,9 +852,9 @@ export default function TerrainCrossSectionView({
           <clipPath id="clip-fill-above-excavation">
             <polygon points={ptsToSvg([
               `${firstPt.offset},${maxElev + 10}`,
-              ...stake.points.filter(p => p.offset < trueExcavationPts[0].x).map(p => `${p.offset},${p.elevation}`),
+              ...extTerrainPts.filter(p => p.offset < trueExcavationPts[0].x).map(p => `${p.offset},${p.elevation}`),
               ...trueExcavationPts.map(p => `${p.x},${p.y}`),
-              ...stake.points.filter(p => p.offset > trueExcavationPts[trueExcavationPts.length - 1].x).map(p => `${p.offset},${p.elevation}`),
+              ...extTerrainPts.filter(p => p.offset > trueExcavationPts[trueExcavationPts.length - 1].x).map(p => `${p.offset},${p.elevation}`),
               `${lastPt.offset},${maxElev + 10}`
             ].join(' '))} />
           </clipPath>
@@ -621,7 +862,7 @@ export default function TerrainCrossSectionView({
             <polygon points={ptsToSvg([
               `${firstPt.offset},${minElev - 10}`,
               `${firstPt.offset},${firstPt.elevation}`,
-              ...stake.points.filter(p => p.offset < trueExcavationPts[0].x).map(p => `${p.offset},${p.elevation}`),
+              ...extTerrainPts.filter(p => p.offset < trueExcavationPts[0].x).map(p => `${p.offset},${p.elevation}`),
               `${trueExcavationPts[0].x},${trueExcavationPts[0].y}`,
               ...(params.coRanhThoatNuoc && isLeftCut ? [
                 `${ditchTopLeft.x},${ditchTopLeft.y}`,
@@ -650,7 +891,7 @@ export default function TerrainCrossSectionView({
                 `${bankOuterRight.x},${bankOuterRight.y}`
               ]),
               `${trueExcavationPts[trueExcavationPts.length - 1].x},${trueExcavationPts[trueExcavationPts.length - 1].y}`,
-              ...stake.points.filter(p => p.offset > trueExcavationPts[trueExcavationPts.length - 1].x).map(p => `${p.offset},${p.elevation}`),
+              ...extTerrainPts.filter(p => p.offset > trueExcavationPts[trueExcavationPts.length - 1].x).map(p => `${p.offset},${p.elevation}`),
               `${lastPt.offset},${lastPt.elevation}`,
               `${lastPt.offset},${minElev - 10}`
             ].join(' '))} />
@@ -660,25 +901,22 @@ export default function TerrainCrossSectionView({
         {/* Background */}
         <rect x={margin.left} y={margin.top} width={drawW} height={drawH} fill="#f8fafc" stroke="#e2e8f0" strokeWidth="1" />
 
-        {/* Terrain fill */}
+        {/* Terrain fill (original terrain) */}
         <polygon points={terrainFill} fill="#d4c5a0" fillOpacity="0.4" clipPath="url(#drawArea)" />
 
-        {/* Terrain line */}
-        <polyline points={terrainPts} fill="none" stroke="#92400e" strokeWidth="2" clipPath="url(#drawArea)" />
+        {/* Excavation Earth Area (Cutout filled with white) bounded by C-A-B-D and terrain */}
+        {excavationCutoutPoly.length > 0 && (
+          <polygon
+            points={ptsToSvg(excavationCutoutPoly.map(p => `${p.x},${p.y}`).join(' '))}
+            fill="#ffffff"
+            clipPath="url(#drawArea)"
+          />
+        )}
 
-        {/* Excavation Cut Out (Erases terrain inside trench using background color) */}
-        <polygon points={cutoutPolyStr} fill="#f8fafc" clipPath="url(#drawArea)" />
+        {/* Terrain line (Original intact terrain) */}
+        <polyline points={terrainPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />
 
-        {/* Embankment Fill Area (Yellow/Green) */}
-        <g clipPath="url(#drawArea)">
-          <g clipPath="url(#clip-fill-above-excavation)">
-            <g clipPath="url(#clip-fill-below-earth)">
-              <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="#fef08a" opacity="0.6" />
-            </g>
-          </g>
-        </g>
-
-        {/* Grid lines (Drawn over the erased area so they aren't hidden) */}
+        {/* Grid lines */}
         {elevGrid.map(e => (
           <line key={`eg-${e}`} x1={margin.left} y1={toSvgY(e)} x2={margin.left + drawW} y2={toSvgY(e)}
             stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="3,3" clipPath="url(#drawArea)" />
@@ -688,66 +926,117 @@ export default function TerrainCrossSectionView({
             stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="3,3" clipPath="url(#drawArea)" />
         ))}
 
-        {hasDitchLeft ? (
+        {/* Canal Structure */}
+        {showCanal && (
           <>
-            <polyline points={ptsToSvg(`${cutLeftFinal.x},${cutLeftFinal.y} ${ditchTopLeft.x},${ditchTopLeft.y}`)} fill="none" stroke="#854d0e" strokeWidth="1.5" clipPath="url(#drawArea)" />
-            <polyline points={ptsToSvg(`${bankOuterLeft.x},${bankOuterLeft.y} ${bankInnerLeft.x},${bankInnerLeft.y}`)} fill="none" stroke="#854d0e" strokeWidth="1.5" clipPath="url(#drawArea)" />
+            {/* Concrete Lining */}
+            <polygon points={concretePolygon} fill="#94a3b8" stroke="#334155" strokeWidth="1" clipPath="url(#drawArea)" />
+
+            {/* Lean Concrete */}
+            <polygon points={dlotPolygon} fill="#cbd5e1" stroke="#475569" strokeWidth="0.5" clipPath="url(#drawArea)" />
+
+            {/* Water fill */}
+            <polygon points={waterPoints} fill="#3b82f6" fillOpacity="0.25" clipPath="url(#drawArea)" />
+
+            {/* Water surface line */}
+            <line
+              x1={toSvgX(water_left_off)} y1={toSvgY(water_elev)}
+              x2={toSvgX(water_right_off)} y2={toSvgY(water_elev)}
+              stroke="#2563eb" strokeWidth="1.5" strokeDasharray="6,3" clipPath="url(#drawArea)"
+            />
+
+            {/* Datum / bottom of canal line */}
+            <line
+              x1={toSvgX(bot_left_off) - 12} y1={toSvgY(dayKenhAtStake)}
+              x2={toSvgX(bot_right_off) + 12} y2={toSvgY(dayKenhAtStake)}
+              stroke="#ef4444" strokeWidth="1" strokeDasharray="4,2" clipPath="url(#drawArea)"
+            />
+
+            {/* Centre line */}
+            <line
+              x1={toSvgX(cx_real)} y1={toSvgY(dayKenhAtStake)}
+              x2={toSvgX(cx_real)} y2={toSvgY(top_elev + 0.3)}
+              stroke="#6366f1" strokeWidth="1" strokeDasharray="4,2" clipPath="url(#drawArea)"
+            />
           </>
-        ) : (
-          <polyline points={ptsToSvg(`${cutLeftFinal.x},${cutLeftFinal.y} ${bankOuterLeft.x},${bankOuterLeft.y} ${bankInnerLeft.x},${bankInnerLeft.y}`)} fill="none" stroke="#854d0e" strokeWidth="1.5" clipPath="url(#drawArea)" />
         )}
 
-        {hasDitchRight ? (
-          <>
-            <polyline points={ptsToSvg(`${bankInnerRight.x},${bankInnerRight.y} ${bankOuterRight.x},${bankOuterRight.y}`)} fill="none" stroke="#854d0e" strokeWidth="1.5" clipPath="url(#drawArea)" />
-            <polyline points={ptsToSvg(`${ditchTopRightRight.x},${ditchTopRightRight.y} ${fillRight.x},${fillRight.y}`)} fill="none" stroke="#854d0e" strokeWidth="1.5" clipPath="url(#drawArea)" />
-          </>
-        ) : (
-          <polyline points={ptsToSvg(`${bankInnerRight.x},${bankInnerRight.y} ${bankOuterRight.x},${bankOuterRight.y} ${fillRight.x},${fillRight.y}`)} fill="none" stroke="#854d0e" strokeWidth="1.5" clipPath="url(#drawArea)" />
+        {/* Line AB if both A and B are lower than terrain */}
+        {isALowerThanTerrain && isBLowerThanTerrain && (
+          <line
+            x1={toSvgX(pointA.x)} y1={toSvgY(pointA.y)}
+            x2={toSvgX(pointB.x)} y2={toSvgY(pointB.y)}
+            stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+          />
         )}
 
-        {/* Trench boundary (Solid line, ground color) */}
-        <polyline points={ptsToSvg(trueExcavationPts.map(p => `${p.x},${p.y}`).join(' '))} fill="none" stroke="black" strokeWidth="2" clipPath="url(#drawArea)" />
+        {/* Slope line from A to terrain intersection intersectA */}
+        {isALowerThanTerrain && intersectA && (
+          <line
+            x1={toSvgX(pointA.x)} y1={toSvgY(pointA.y)}
+            x2={toSvgX(intersectA.x)} y2={toSvgY(intersectA.y)}
+            stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+          />
+        )}
 
-        {/* Drainage Ditch */}
-        {ditchSvgPolys && <polygon points={ditchSvgPolys} fill="#e2e8f0" stroke="#334155" strokeWidth="1" clipPath="url(#drawArea)" />}
-        {ditchSvgPolysRight && <polygon points={ditchSvgPolysRight} fill="#e2e8f0" stroke="#334155" strokeWidth="1" clipPath="url(#drawArea)" />}
+        {/* Slope line from B to terrain intersection intersectB */}
+        {isBLowerThanTerrain && intersectB && (
+          <line
+            x1={toSvgX(pointB.x)} y1={toSvgY(pointB.y)}
+            x2={toSvgX(intersectB.x)} y2={toSvgY(intersectB.y)}
+            stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+          />
+        )}
 
-        {/* Concrete Lining */}
-        <polygon points={concretePolygon} fill="#94a3b8" stroke="#334155" strokeWidth="1" clipPath="url(#drawArea)" />
+        {/* Horizontal line from lower point (A or B) to point E on terrain */}
+        {lowerPointForE && pointE && (
+          <line
+            x1={toSvgX(lowerPointForE.x)} y1={toSvgY(lowerPointForE.y)}
+            x2={toSvgX(pointE.x)} y2={toSvgY(pointE.y)}
+            stroke="black" strokeWidth="2" clipPath="url(#drawArea)"
+          />
+        )}
 
-        {/* Lean Concrete */}
-        <polygon points={dlotPolygon} fill="#cbd5e1" stroke="#475569" strokeWidth="0.5" clipPath="url(#drawArea)" />
+        {/* Bottom corner points A (Left) and B (Right) */}
+        <g clipPath="url(#drawArea)">
+          {/* Point A (Bottom Left) */}
+          <circle cx={toSvgX(pointA.x)} cy={toSvgY(pointA.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+          <text x={toSvgX(pointA.x) - 6} y={toSvgY(pointA.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">A</text>
 
-        {/* Water fill */}
-        <polygon points={waterPoints} fill="#3b82f6" fillOpacity="0.25" clipPath="url(#drawArea)" />
+          {/* Point B (Bottom Right) */}
+          <circle cx={toSvgX(pointB.x)} cy={toSvgY(pointB.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+          <text x={toSvgX(pointB.x) + 6} y={toSvgY(pointB.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">B</text>
 
-        {/* Info Legend */}
-        <g transform={`translate(${margin.left + drawW - 130}, ${margin.top + 20})`}>
-          <rect x="0" y="0" width="115" height="30" fill="white" stroke="#e2e8f0" strokeWidth="1" rx="4" opacity="0.9" />
-          <text x="10" y="19" fontSize="12" fill="#1e293b" fontWeight="600">S đào: {S_dao.toFixed(2)} m²</text>
+          {/* Point C (Intersection of left slope line with terrain) */}
+          {isALowerThanTerrain && intersectA && (
+            <>
+              <circle cx={toSvgX(intersectA.x)} cy={toSvgY(intersectA.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+              <text x={toSvgX(intersectA.x) - 6} y={toSvgY(intersectA.y) - 8} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">C</text>
+            </>
+          )}
+
+          {/* Point D (Intersection of right slope line with terrain) */}
+          {isBLowerThanTerrain && intersectB && (
+            <>
+              <circle cx={toSvgX(intersectB.x)} cy={toSvgY(intersectB.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+              <text x={toSvgX(intersectB.x) + 6} y={toSvgY(intersectB.y) - 8} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">D</text>
+            </>
+          )}
+
+          {/* Point E (Intersection of horizontal line from lower A/B point with terrain) */}
+          {pointE && lowerPointForE && (
+            <>
+              <circle cx={toSvgX(pointE.x)} cy={toSvgY(pointE.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+              <text x={toSvgX(pointE.x) + (lowerPointForE === pointA ? 8 : -8)} y={toSvgY(pointE.y) - 6} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor={lowerPointForE === pointA ? "start" : "end"}>E</text>
+            </>
+          )}
         </g>
 
-        {/* Water surface line */}
-        <line
-          x1={toSvgX(water_left_off)} y1={toSvgY(water_elev)}
-          x2={toSvgX(water_right_off)} y2={toSvgY(water_elev)}
-          stroke="#2563eb" strokeWidth="1.5" strokeDasharray="6,3" clipPath="url(#drawArea)"
-        />
-
-        {/* Datum / bottom of canal line */}
-        <line
-          x1={toSvgX(bot_left_off) - 12} y1={toSvgY(dayKenhAtStake)}
-          x2={toSvgX(bot_right_off) + 12} y2={toSvgY(dayKenhAtStake)}
-          stroke="#ef4444" strokeWidth="1" strokeDasharray="4,2" clipPath="url(#drawArea)"
-        />
-
-        {/* Centre line */}
-        <line
-          x1={toSvgX(cx_real)} y1={toSvgY(dayKenhAtStake)}
-          x2={toSvgX(cx_real)} y2={toSvgY(top_elev + 0.3)}
-          stroke="#6366f1" strokeWidth="1" strokeDasharray="4,2" clipPath="url(#drawArea)"
-        />
+        {/* Info Legend (S đào area display) */}
+        <g transform={`translate(${margin.left + drawW - 145}, ${margin.top + 20})`}>
+          <rect x="0" y="0" width="130" height="32" fill="white" stroke="#cbd5e1" strokeWidth="1" rx="6" opacity="0.95" />
+          <text x="12" y="21" fontSize="13" fill="#0f172a" fontWeight="700">S đào: {S_dao_trang.toFixed(2)} m²</text>
+        </g>
 
         {/* Elevation axis labels (right) */}
         {elevGrid.map(e => (

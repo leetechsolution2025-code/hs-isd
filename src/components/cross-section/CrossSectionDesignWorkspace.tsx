@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import ParametricModule from './ParametricModule';
 import TerrainCrossSectionView from './TerrainCrossSectionView';
-import { Upload } from 'lucide-react';
+import { Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface CrossSectionPoint {
   offset: number;
@@ -74,6 +74,8 @@ export default function CrossSectionDesignWorkspace({
 }: CrossSectionDesignWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<'parametric' | 'terrain'>('parametric');
   const [selectedStakeIdx, setSelectedStakeIdx] = useState<number>(0);
+  const [showOverlay, setShowOverlay] = useState<boolean>(true);
+  const [showCanal, setShowCanal] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,6 +161,8 @@ export default function CrossSectionDesignWorkspace({
                     flowNodes={flowNodes}
                     nodeElevations={nodeElevations}
                     crossSectionParams={crossSectionParams}
+                    showOverlay={showOverlay}
+                    showCanal={showCanal}
                   />
                 )}
               </div>
@@ -192,19 +196,65 @@ export default function CrossSectionDesignWorkspace({
                   {terrainStakes.length > 0 && (
                     <div className="mt-4 space-y-2">
                       <label className="text-[12px] text-slate-500">Đã tải: {terrainStakes.length} cọc</label>
-                      <select
-                        value={selectedStakeIdx}
-                        onChange={(e) => setSelectedStakeIdx(Number(e.target.value))}
-                        className="w-full bg-slate-100 border border-slate-300 text-slate-700 text-[13px] rounded px-3 py-2 outline-none focus:border-blue-500 font-semibold cursor-pointer"
-                      >
-                        {terrainStakes.map((stake, idx) => (
-                          <option key={idx} value={idx}>
-                            Cọc {stake.name} (Lý trình: {stake.chainage.toFixed(2)})
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => setSelectedStakeIdx(prev => Math.max(0, prev - 1))}
+                          disabled={selectedStakeIdx === 0}
+                          className="p-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed bg-slate-50 transition-colors"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <select
+                          value={selectedStakeIdx}
+                          onChange={(e) => setSelectedStakeIdx(Number(e.target.value))}
+                          className="flex-1 bg-slate-100 border border-slate-300 text-slate-700 text-[13px] rounded px-3 py-2 outline-none focus:border-blue-500 font-semibold cursor-pointer min-w-0"
+                        >
+                          {terrainStakes.map((stake, idx) => (
+                            <option key={idx} value={idx}>
+                              Cọc {stake.name} (Lý trình: {stake.chainage.toFixed(2)})
+                            </option>
+                          ))}
+                        </select>
+                        <button 
+                          onClick={() => setSelectedStakeIdx(prev => Math.min(terrainStakes.length - 1, prev + 1))}
+                          disabled={selectedStakeIdx === terrainStakes.length - 1}
+                          className="p-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed bg-slate-50 transition-colors"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
                     </div>
                   )}
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 space-y-3">
+                  <h4 className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Tùy chọn hiển thị</h4>
+
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-xs font-medium text-slate-700">Hiển thị vùng màu (Đất đắp)</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={showOverlay}
+                        onChange={(e) => setShowOverlay(e.target.checked)}
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-xs font-medium text-slate-700">Hiển thị mặt cắt kênh</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={showCanal}
+                        onChange={(e) => setShowCanal(e.target.checked)}
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
                 </div>
 
               </div>
