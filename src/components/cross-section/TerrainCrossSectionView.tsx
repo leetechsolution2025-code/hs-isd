@@ -211,9 +211,15 @@ export default function TerrainCrossSectionView({
       let closestPt = null;
       let minT = Infinity;
 
-      for (let i = 0; i < stake.points.length - 1; i++) {
-        const pA = stake.points[i];
-        const pB = stake.points[i + 1];
+      const extendedPoints = [
+        { offset: stake.points[0].offset - 1000, elevation: stake.points[0].elevation },
+        ...stake.points,
+        { offset: stake.points[stake.points.length - 1].offset + 1000, elevation: stake.points[stake.points.length - 1].elevation }
+      ];
+
+      for (let i = 0; i < extendedPoints.length - 1; i++) {
+        const pA = extendedPoints[i];
+        const pB = extendedPoints[i + 1];
 
         const x1 = startPt.x, y1 = startPt.y;
         const x2 = startPt.x + vx, y2 = startPt.y + vy;
@@ -254,7 +260,7 @@ export default function TerrainCrossSectionView({
     let isInsideTrenchLeft = (bankElevLeft <= trenchTopLeft.y && x_trench_left_top < bankOuterLeft.x);
 
     let test_bank_x_l = Math.min(bankOuterLeft.x, x_trench_left_top);
-    let isLeftCut = isInsideTrenchLeft ? false : (getTerrainElev(test_bank_x_l) > bankElevLeft);
+    let isLeftCut = (getTerrainElev(test_bank_x_l) > bankElevLeft);
     let hasDitchLeft = false;
 
     if (isLeftCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
@@ -281,7 +287,7 @@ export default function TerrainCrossSectionView({
     let isInsideTrenchRight = (bankElevRight <= trenchTopRight.y && x_trench_right_top > bankOuterRight.x);
 
     let test_bank_x_r = Math.max(bankOuterRight.x, x_trench_right_top);
-    let isRightCut = isInsideTrenchRight ? false : (getTerrainElev(test_bank_x_r) > bankElevRight);
+    let isRightCut = (getTerrainElev(test_bank_x_r) > bankElevRight);
     let hasDitchRight = false;
 
     if (isRightCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
@@ -614,15 +620,17 @@ export default function TerrainCrossSectionView({
           <clipPath id="clip-fill-below-earth">
             <polygon points={ptsToSvg([
               `${firstPt.offset},${minElev - 10}`,
-              `${cutLeftFinal.x},${minElev - 10}`,
-              `${cutLeftFinal.x},${cutLeftFinal.y}`,
+              `${firstPt.offset},${firstPt.elevation}`,
+              ...stake.points.filter(p => p.offset < trueExcavationPts[0].x).map(p => `${p.offset},${p.elevation}`),
+              `${trueExcavationPts[0].x},${trueExcavationPts[0].y}`,
               ...(params.coRanhThoatNuoc && isLeftCut ? [
                 `${ditchTopLeft.x},${ditchTopLeft.y}`,
                 `${ditchTopLeft.x},${ditchTopLeft.y - (Number(params.HTN) || 0) - (Number(params.DTN) || 0)}`,
                 `${bankOuterLeft.x},${bankOuterLeft.y - (Number(params.HTN) || 0) - (Number(params.DTN) || 0)}`,
                 `${bankOuterLeft.x},${bankOuterLeft.y}`
-              ] : []),
-              `${bankOuterLeft.x},${bankOuterLeft.y}`,
+              ] : [
+                `${bankOuterLeft.x},${bankOuterLeft.y}`
+              ]),
               `${bankInnerLeft.x},${bankInnerLeft.y}`,
               `${outerLeftTop.x},${outerLeftTop.y}`,
               `${outerLeftBottom.x},${outerLeftBottom.y}`,
@@ -633,9 +641,17 @@ export default function TerrainCrossSectionView({
               `${outerRightBottom.x},${outerRightBottom.y}`,
               `${outerRightTop.x},${outerRightTop.y}`,
               `${bankInnerRight.x},${bankInnerRight.y}`,
-              `${bankOuterRight.x},${bankOuterRight.y}`,
-              `${fillRight.x},${fillRight.y}`,
-              `${fillRight.x},${minElev - 10}`,
+              ...(params.coRanhThoatNuoc && isRightCut ? [
+                `${bankOuterRight.x},${bankOuterRight.y}`,
+                `${bankOuterRight.x},${bankOuterRight.y - (Number(params.HTN) || 0) - (Number(params.DTN) || 0)}`,
+                `${ditchTopRightRight.x},${ditchTopRightRight.y - (Number(params.HTN) || 0) - (Number(params.DTN) || 0)}`,
+                `${ditchTopRightRight.x},${ditchTopRightRight.y}`
+              ] : [
+                `${bankOuterRight.x},${bankOuterRight.y}`
+              ]),
+              `${trueExcavationPts[trueExcavationPts.length - 1].x},${trueExcavationPts[trueExcavationPts.length - 1].y}`,
+              ...stake.points.filter(p => p.offset > trueExcavationPts[trueExcavationPts.length - 1].x).map(p => `${p.offset},${p.elevation}`),
+              `${lastPt.offset},${lastPt.elevation}`,
               `${lastPt.offset},${minElev - 10}`
             ].join(' '))} />
           </clipPath>
@@ -691,7 +707,7 @@ export default function TerrainCrossSectionView({
         )}
 
         {/* Trench boundary (Solid line, ground color) */}
-        <polyline points={ptsToSvg(trueExcavationPts.map(p => `${p.x},${p.y}`).join(' '))} fill="none" stroke="#92400e" strokeWidth="1.5" clipPath="url(#drawArea)" />
+        <polyline points={ptsToSvg(trueExcavationPts.map(p => `${p.x},${p.y}`).join(' '))} fill="none" stroke="black" strokeWidth="2" clipPath="url(#drawArea)" />
 
         {/* Drainage Ditch */}
         {ditchSvgPolys && <polygon points={ditchSvgPolys} fill="#e2e8f0" stroke="#334155" strokeWidth="1" clipPath="url(#drawArea)" />}
@@ -754,29 +770,7 @@ export default function TerrainCrossSectionView({
           Khoảng cách từ tim kênh (m)
         </text>
 
-        {/* Key level labels */}
-        {/* Day kenh */}
-        <text x={toSvgX(cx_real) + 4} y={toSvgY(dayKenhAtStake) - 3} fontSize="9" fill="#ef4444">
-          ▽ {dayKenhAtStake.toFixed(2)}
-        </text>
-        {/* Water level */}
-        <text x={toSvgX(water_right_off) + 4} y={toSvgY(water_elev) + 3} fontSize="9" fill="#2563eb">
-          MN TK {water_elev.toFixed(2)}
-        </text>
-        {/* Top level */}
-        <text x={toSvgX(top_right_off) + 4} y={toSvgY(top_elev) + 3} fontSize="9" fill="#1e293b">
-          ▲ {top_elev.toFixed(2)}
-        </text>
 
-        {/* Bottom width dimension */}
-        <line x1={toSvgX(bot_left_off)} y1={toSvgY(dayKenhAtStake) + 12}
-          x2={toSvgX(bot_right_off)} y2={toSvgY(dayKenhAtStake) + 12} stroke="#475569" strokeWidth="1" />
-        <line x1={toSvgX(bot_left_off)} y1={toSvgY(dayKenhAtStake) + 8}
-          x2={toSvgX(bot_left_off)} y2={toSvgY(dayKenhAtStake) + 16} stroke="#475569" strokeWidth="1" />
-        <line x1={toSvgX(bot_right_off)} y1={toSvgY(dayKenhAtStake) + 8}
-          x2={toSvgX(bot_right_off)} y2={toSvgY(dayKenhAtStake) + 16} stroke="#475569" strokeWidth="1" />
-        <text x={(toSvgX(bot_left_off) + toSvgX(bot_right_off)) / 2} y={toSvgY(dayKenhAtStake) + 24}
-          textAnchor="middle" fontSize="9" fill="#475569">b={b.toFixed(2)}m</text>
 
         {/* Terrain points dots */}
         {stake.points.map((p, i) => (
