@@ -302,8 +302,9 @@ export default function CrossSectionDesignWorkspace({
           scr += `;; AUTOCAD SCRIPT TO DRAW ALL CROSS SECTIONS (${stakesToExport.length} COC)\n`;
           scr += `;;========================================================================\n`;
           scr += `(if (not (tblsearch "LTYPE" "DASHED")) (command "_-LINETYPE" "_Load" "DASHED" "acad.lin" ""))\n`;
+          scr += `(if (not (tblsearch "LTYPE" "CENTER")) (command "_-LINETYPE" "_Load" "CENTER" "acad.lin" ""))\n`;
           scr += `(if (not (tblsearch "STYLE" "VnTimeH")) (command "_-STYLE" "VnTimeH" "vntimeh.shx" "0.0" "1.0" "0.0" "_N" "_N" "_N"))\n`;
-          scr += `-LAYER\nMake\nTuNhien\nColor\n8\n\nLtype\nDASHED\n\nMake\nTimKenh\nColor\n5\n\nLtype\nDASHED\n\nMake\nMucNuoc\nColor\n5\n\nLtype\nDASHED\n\nMake\nMatKenh_BeTong\nColor\n3\n\nMake\nBeTongLot\nColor\n1\n\nMake\nMaiDap\nColor\n2\n\nMake\nMaiDao\nColor\n6\n\nMake\nRanhThoatNuoc\nColor\n4\n\nMake\nKhungBao\nColor\n1\n\nMake\nKhungBang\nColor\n8\n\nMake\nTextBang\nColor\n7\n\n\n`;
+          scr += `-LAYER\nMake\nTuNhien\nColor\n8\n\nLtype\nDASHED\n\nMake\nTimKenh\nColor\n2\n\nLtype\nCENTER\n\nMake\nMucNuoc\nColor\n5\n\nLtype\nDASHED\n\nMake\nMatKenh_BeTong\nColor\n3\n\nMake\nBeTongLot\nColor\n1\n\nMake\nMaiDap\nColor\n2\n\nMake\nMaiDao\nColor\n6\n\nMake\nRanhThoatNuoc\nColor\n4\n\nMake\nKhungBao\nColor\n1\n\nMake\nKhungBang\nColor\n8\n\nMake\nTextBang\nColor\n7\n\n\n`;
           const gapX = 65.0 * (1000 / horizontalScale);
 
           stakesToExport.forEach((stake, idx) => {
@@ -316,7 +317,6 @@ export default function CrossSectionDesignWorkspace({
             const rightBound = maxOff + 2.0;
             const centerM = (leftBound + rightBound) / 2;
             const X0 = sheetIdx * 385.0 + 192.5 - centerM * scaleFactor;
-            const Y0 = (idx % 2 === 0) ? 185.0 : 60.0;
 
             const geom = calculateCrossSectionGeometry(
               stake,
@@ -328,6 +328,8 @@ export default function CrossSectionDesignWorkspace({
             );
 
             const maxTerrainY = stake.points && stake.points.length > 0 ? Math.max(...stake.points.map(p => p.elevation)) : geom.cy + 2.0;
+            const h_above_datum = maxTerrainY - geom.stakeDatum + 2.5;
+            const Y0 = (idx % 2 === 0) ? 257.0 - h_above_datum * (1000 / verticalScale) : 50.0;
 
             const mapX = (off: number) => {
               const val = X0 + (isNaN(off) ? 0 : off) * (1000 / horizontalScale);
@@ -593,7 +595,7 @@ export default function CrossSectionDesignWorkspace({
           const stakesToExport = terrainStakes.length > 0 ? terrainStakes : [];
           const { horizontalScale = 1000, verticalScale = 100 } = settings;
           
-          let dxf = `0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLTYPE\n70\n1\n0\nLTYPE\n2\nDASHED\n70\n0\n3\nDashed __ __ __ __ __ __\n72\n65\n73\n2\n40\n0.75\n49\n0.5\n49\n-0.25\n0\nENDTAB\n0\nTABLE\n2\nSTYLE\n70\n1\n0\nSTYLE\n2\nVnTimeH\n70\n0\n40\n0.0\n41\n1.0\n50\n0.0\n71\n0\n42\n1.5\n3\nvntimeh.shx\n4\n\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n`;
+          let dxf = `0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLTYPE\n70\n2\n0\nLTYPE\n2\nDASHED\n70\n0\n3\nDashed __ __ __ __ __ __\n72\n65\n73\n2\n40\n0.75\n49\n0.5\n49\n-0.25\n0\nLTYPE\n2\nCENTER\n70\n0\n3\nCenter ____ _ ____ _ ____\n72\n65\n73\n4\n40\n2.0\n49\n1.25\n49\n-0.25\n49\n0.25\n49\n-0.25\n0\nENDTAB\n0\nTABLE\n2\nSTYLE\n70\n1\n0\nSTYLE\n2\nVnTimeH\n70\n0\n40\n0.0\n41\n1.0\n50\n0.0\n71\n0\n42\n1.5\n3\nvntimeh.shx\n4\n\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n`;
 
           const gapX = 65.0 * (1000 / horizontalScale);
 
@@ -633,7 +635,6 @@ export default function CrossSectionDesignWorkspace({
             const rightBound = maxOff + 2.0;
             const centerM = (leftBound + rightBound) / 2;
             const X0 = sheetIdx * 385.0 + 192.5 - centerM * scaleFactor;
-            const Y0 = (idx % 2 === 0) ? 185.0 : 60.0;
 
             const geom = calculateCrossSectionGeometry(
               stake,
@@ -645,6 +646,8 @@ export default function CrossSectionDesignWorkspace({
             );
 
             const maxTerrainY = stake.points && stake.points.length > 0 ? Math.max(...stake.points.map(p => p.elevation)) : geom.cy + 2.0;
+            const h_above_datum = maxTerrainY - geom.stakeDatum + 2.5;
+            const Y0 = (idx % 2 === 0) ? 257.0 - h_above_datum * (1000 / verticalScale) : 50.0;
 
             const mapX = (off: number) => {
               const val = X0 + (isNaN(off) ? 0 : off) * (1000 / horizontalScale);
@@ -730,8 +733,8 @@ export default function CrossSectionDesignWorkspace({
               });
             }
 
-            // 3. Centerline Axis (TimKenh - Red/Color 1, DASHED)
-            addDxfLine(mapX(geom.cx), mapY(yRow2), mapX(geom.cx), mapY(geom.cy + geom.H_total + 2.5), 'TimKenh', 1, 'DASHED');
+            // 3. Centerline Axis (TimKenh - Yellow/Color 2, CENTER)
+            addDxfLine(mapX(geom.cx), mapY(yRow2), mapX(geom.cx), mapY(geom.cy + geom.H_total + 2.5), 'TimKenh', 2, 'CENTER');
 
             // 4. Water Level Line (MucNuoc - Blue/Color 5)
             addDxfLine(mapX(geom.cx - geom.b/2 - 1.0), mapY(geom.waterLevelAtStake), mapX(geom.cx + geom.b/2 + 1.0), mapY(geom.waterLevelAtStake), 'MucNuoc', 5);
