@@ -297,31 +297,59 @@ export default function CrossSectionDesignWorkspace({
         onExportLISP={(settings) => {
           const stakesToExport = terrainStakes.length > 0 ? terrainStakes : [];
           const { horizontalScale = 1000, verticalScale = 100 } = settings;
+          
           let scr = `;;========================================================================\n`;
+          scr += `(command)\n`;
+          scr += `(setvar "FILEDIA" 0)\n`;
           scr += `(setvar "OSMODE" 0)\n`;
-          scr += `;; AUTOCAD SCRIPT TO DRAW ALL CROSS SECTIONS (${stakesToExport.length} COC)\n`;
+          scr += `;; AUTOCAD SCRIPT TO DRAW DRAWING BORDERS, DATUM LINES AND RULER\n`;
           scr += `;;========================================================================\n`;
-          scr += `(if (not (tblsearch "LTYPE" "DASHED")) (command "_-LINETYPE" "_Load" "DASHED" "acad.lin" ""))\n`;
-          scr += `(if (not (tblsearch "LTYPE" "CENTER")) (command "_-LINETYPE" "_Load" "CENTER" "acad.lin" ""))\n`;
-          scr += `(if (not (tblsearch "STYLE" "VnTimeH")) (command "_-STYLE" "VnTimeH" "vntimeh.shx" "0.0" "1.0" "0.0" "_N" "_N" "_N"))\n`;
-          scr += `(command "_.LAYER" "M" "TuNhien" "C" 8 "TuNhien" "L" "DASHED" "TuNhien" "M" "TimKenh" "C" 2 "TimKenh" "L" "CENTER" "TimKenh" "M" "MucNuoc" "C" 5 "MucNuoc" "L" "DASHED" "MucNuoc" "M" "MatKenh_BeTong" "C" 3 "MatKenh_BeTong" "M" "BeTongLot" "C" 1 "BeTongLot" "M" "MaiDap" "C" 2 "MaiDap" "M" "MaiDao" "C" 6 "MaiDao" "M" "RanhThoatNuoc" "C" 4 "RanhThoatNuoc" "M" "KhungBao" "C" 1 "KhungBao" "M" "KhungBang" "C" 8 "KhungBang" "M" "TextBang" "C" 7 "TextBang" "")\n`;
-          scr += `(defun drawline (p1 p2 lay col)\n`;
-          scr += `  (entmake (list '(0 . "LINE") (cons 8 lay) (cons 62 col) (cons 10 p1) (cons 11 p2)))\n`;
+          scr += `(defun createlay (lay col ltp)\n`;
+          scr += `  (if (not (tblsearch "LAYER" lay))\n`;
+          scr += `    (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord") '(100 . "AcDbLayerTableRecord") (cons 2 lay) '(70 . 0) (cons 62 col) (cons 6 "Continuous")))\n`;
+          scr += `  )\n`;
+          scr += `)\n`;
+          scr += `(createlay "KhungBao" 1 "Continuous")\n`;
+          scr += `(createlay "KhungBang" 7 "Continuous")\n`;
+          scr += `(createlay "TextBang" 7 "Continuous")\n`;
+          scr += `(if (not (tblsearch "STYLE" "VnTimeH")) (entmake '((0 . "STYLE") (100 . "AcDbSymbolTableRecord") (100 . "AcDbTextStyleTableRecord") (2 . "VnTimeH") (70 . 0) (40 . 0.0) (41 . 1.0) (50 . 0.0) (71 . 0) (42 . 2.5) (3 . "vntimeh.shx") (4 . ""))))\n`;
+          scr += `(defun to3d (p)\n`;
+          scr += `  (list (car p) (cadr p) (if (caddr p) (caddr p) 0.0))\n`;
+          scr += `)\n`;
+          scr += `(defun drawpoly (pts lay col cls ltp)\n`;
+          scr += `  (setvar "CLAYER" lay)\n`;
+          scr += `  (setvar "CECOLOR" (itoa col))\n`;
+          scr += `  (setvar "CELTYPE" "Continuous")\n`;
+          scr += `  (command "_.PLINE")\n`;
+          scr += `  (foreach pt pts (command pt))\n`;
+          scr += `  (if (= cls 1) (command "c") (command ""))\n`;
+          scr += `)\n`;
+          scr += `(defun drawline (p1 p2 lay col ltp)\n`;
+          scr += `  (setvar "CLAYER" lay)\n`;
+          scr += `  (setvar "CECOLOR" (itoa col))\n`;
+          scr += `  (setvar "CELTYPE" (if (or (= ltp "ByLayer") (= ltp "ByBlock") (tblsearch "LTYPE" ltp)) ltp "ByLayer"))\n`;
+          scr += `  (command "_.LINE" p1 p2 "")\n`;
           scr += `)\n`;
           scr += `(defun drawtext (pt txt h rot lay sty col)\n`;
-          scr += `  (entmake (list '(0 . "TEXT") (cons 8 lay) (cons 62 col) (cons 10 pt) (cons 40 h) (cons 1 txt) (cons 50 (* rot (/ pi 180.0))) (cons 7 sty)))\n`;
-          scr += `)\n`;
-          scr += `(defun drawpoly (pts lay col cls)\n`;
-          scr += `  (entmake (append (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") (cons 8 lay) (cons 62 col) '(100 . "AcDbPolyline") (cons 90 (length pts)) (cons 70 cls)) (mapcar '(lambda (pt) (cons 10 pt)) pts)))\n`;
+          scr += `  (entmake (list '(0 . "TEXT") '(100 . "AcDbEntity") (cons 8 lay) (cons 62 col) '(100 . "AcDbText") (cons 10 (to3d pt)) (cons 40 h) (cons 1 txt) (cons 50 (* rot (/ pi 180.0))) (cons 7 (if (tblsearch "STYLE" sty) sty "Standard"))))\n`;
           scr += `)\n`;
           scr += `(defun drawsolid (p1 p2 p3 p4 lay col)\n`;
-          scr += `  (entmake (list '(0 . "SOLID") (cons 8 lay) (cons 62 col) (cons 10 p1) (cons 11 p2) (cons 12 p3) (cons 13 p4)))\n`;
+          scr += `  (setvar "CLAYER" lay)\n`;
+          scr += `  (setvar "CECOLOR" (itoa col))\n`;
+          scr += `  (setvar "CELTYPE" "Continuous")\n`;
+          scr += `  (command "_.SOLID" p1 p2 p3 p4 "")\n`;
           scr += `)\n`;
-          const gapX = 65.0 * (1000 / horizontalScale);
+
+          const totalSheets = Math.ceil(stakesToExport.length / 2);
+          for (let sheetIdx = 0; sheetIdx < totalSheets; sheetIdx++) {
+            const sheetX = sheetIdx * 385.0;
+            scr += `(drawpoly (list (list ${sheetX} 0) (list ${sheetX + 385.0} 0) (list ${sheetX + 385.0} 277.0) (list ${sheetX} 277.0)) "KhungBao" 1 1 "ByLayer")\n`;
+          }
 
           stakesToExport.forEach((stake, idx) => {
-            const minOff = stake.points && stake.points.length > 0 ? Math.min(...stake.points.map(p => p.offset)) : 0;
-            const maxOff = stake.points && stake.points.length > 0 ? Math.max(...stake.points.map(p => p.offset)) : 20;
+            const pts = stake.points && stake.points.length > 0 ? stake.points : [{ offset: 0.0, elevation: 0.0 }];
+            const minOff = Math.min(...pts.map(p => p.offset));
+            const maxOff = Math.max(...pts.map(p => p.offset));
 
             const sheetIdx = Math.floor(idx / 2);
             const scaleFactor = 1000 / horizontalScale;
@@ -329,6 +357,13 @@ export default function CrossSectionDesignWorkspace({
             const rightBound = maxOff + 2.0;
             const centerM = (leftBound + rightBound) / 2;
             const X0 = sheetIdx * 385.0 + 192.5 - centerM * scaleFactor;
+
+            const mapX = (off: number) => {
+              const val = X0 + (isNaN(off) ? 0 : off) * (1000 / horizontalScale);
+              return Number((isNaN(val) ? X0 : val).toFixed(3));
+            };
+
+            const Y_datum = (idx % 2 === 0) ? 175.0 : 50.0;
 
             const geom = calculateCrossSectionGeometry(
               stake,
@@ -338,409 +373,61 @@ export default function CrossSectionDesignWorkspace({
               nodeElevations,
               crossSectionParams
             );
-
-            const maxTerrainY = stake.points && stake.points.length > 0 ? Math.max(...stake.points.map(p => p.elevation)) : geom.cy + 2.0;
-            const h_above_datum = maxTerrainY - geom.stakeDatum + 2.5;
-            const Y0 = (idx % 2 === 0) ? 257.0 - h_above_datum * (1000 / verticalScale) : 50.0;
-
-            const mapX = (off: number) => {
-              const val = X0 + (isNaN(off) ? 0 : off) * (1000 / horizontalScale);
-              return Number((isNaN(val) ? X0 : val).toFixed(3));
-            };
+            const minTerrainY = Math.min(...pts.map(p => p.elevation));
+            const maxTerrainY = Math.max(...pts.map(p => p.elevation));
+            const gDatum = isNaN(geom.stakeDatum) ? Math.floor(minTerrainY) - 2.0 : geom.stakeDatum;
 
             const mapY = (elev: number) => {
-              const val = Y0 + ((isNaN(elev) ? geom.cy : elev) - geom.stakeDatum) * (1000 / verticalScale);
-              return Number((isNaN(val) ? Y0 : val).toFixed(3));
+              const val = Y_datum + (elev - gDatum) * (1000 / verticalScale);
+              return Number((isNaN(val) ? Y_datum : val).toFixed(3));
             };
 
+            // Draw Datum Line (White/Color 7)
+            scr += `(drawline (list ${mapX(minOff - 3.5)} ${Y_datum}) (list ${mapX(maxOff + 2.0)} ${Y_datum}) "KhungBang" 7 "ByLayer")\n`;
+
+            // Draw Datum Label ("MỨC SO SÁNH: [gDatum]")
+            scr += `(drawtext (list ${mapX(minOff - 3.2)} ${Y_datum + 0.5}) "${unicodeToTCVN3(`MỨC SO SÁNH: ${gDatum.toFixed(2)}`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+
+            // Draw Elevation Ruler (aligned at X_ruler = minOff)
             const X_ruler = minOff;
-
-            // Draw sheet borders only once per sheet (for the top cross-section)
-            if (idx % 2 === 0) {
-              const sheetX = sheetIdx * 385.0;
-              // Outer border (385mm x 277mm) - Red/Color 1
-              scr += `(drawpoly (list (list ${sheetX} 0) (list ${sheetX + 385.0} 0) (list ${sheetX + 385.0} 277.0) (list ${sheetX} 277.0)) "KhungBao" 1 1)\n`;
-            }
-
-            // 1. Vertical Elevation Ruler (KhungBang - White/Color 7, width 0.2, right edge aligned with minOff)
             const w = 0.2;
-            scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(geom.stakeDatum)}) (list ${mapX(X_ruler - w)} ${mapY(maxTerrainY + 2.0)}) "KhungBang" 8)\n`;
-            scr += `(drawline (list ${mapX(X_ruler)} ${mapY(geom.stakeDatum)}) (list ${mapX(X_ruler)} ${mapY(maxTerrainY + 2.0)}) "KhungBang" 8)\n`;
+            const yRulerMax = maxTerrainY + 2.0;
 
-            for (let yElev = Math.floor(geom.stakeDatum); yElev <= Math.ceil(maxTerrainY + 2.0); yElev += 1.0) {
-              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) "KhungBang" 8)\n`;
-              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler - w - 0.3)} ${mapY(yElev)}) "KhungBang" 8)\n`;
-              scr += `(drawtext (list ${mapX(X_ruler - w - 1.4)} ${mapY(yElev - 0.2)}) "${yElev.toFixed(2)}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
+            scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(gDatum)}) (list ${mapX(X_ruler - w)} ${mapY(yRulerMax)}) "KhungBang" 7 "ByLayer")\n`;
+            scr += `(drawline (list ${mapX(X_ruler)} ${mapY(gDatum)}) (list ${mapX(X_ruler)} ${mapY(yRulerMax)}) "KhungBang" 7 "ByLayer")\n`;
 
-              if (yElev < Math.ceil(maxTerrainY + 2.0) && (yElev - Math.floor(geom.stakeDatum)) % 2 === 0) {
-                scr += `(drawsolid (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) (list ${mapX(X_ruler - w)} ${mapY(yElev + 1.0)}) (list ${mapX(X_ruler)} ${mapY(yElev + 1.0)}) "KhungBang" 8)\n`;
+            for (let yElev = Math.floor(gDatum); yElev <= Math.ceil(yRulerMax); yElev += 1.0) {
+              if (yElev < gDatum - 0.01) continue;
+              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) "KhungBang" 7 "ByLayer")\n`;
+              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler - w - 0.3)} ${mapY(yElev)}) "KhungBang" 7 "ByLayer")\n`;
+              
+              if (Math.abs(yElev - gDatum) > 0.01) {
+                scr += `(drawtext (list ${mapX(X_ruler - w - 1.4)} ${mapY(yElev - 0.2)}) "${yElev.toFixed(2)}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
+              }
+
+              if (yElev < Math.ceil(yRulerMax) && (yElev - Math.floor(gDatum)) % 2 === 0) {
+                scr += `(drawsolid (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) (list ${mapX(X_ruler - w)} ${mapY(yElev + 1.0)}) (list ${mapX(X_ruler)} ${mapY(yElev + 1.0)}) "KhungBang" 7)\n`;
               }
             }
-
-            // Write MỨC SO SÁNH label above row 0
-            scr += `(drawtext (list ${mapX(X_ruler - 3.2)} ${mapY(geom.stakeDatum + 0.5)}) "${unicodeToTCVN3(`MỨC SO SÁNH: Hss = ${geom.stakeDatum.toFixed(2)} m`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
-
-            // 2. Data Table Grid below Datum Line (2 rows: CAO DO TU NHIEN, KHOANG CACH LE)
-            const yRow0 = geom.stakeDatum;
-            const yRow1 = geom.stakeDatum - 1.5;
-            const yRow2 = geom.stakeDatum - 3.0;
-
-            scr += `(drawline (list ${mapX(X_ruler - 3.5)} ${mapY(yRow0)}) (list ${mapX(maxOff + 2.0)} ${mapY(yRow0)}) "KhungBang" 8)\n`;
-            scr += `(drawline (list ${mapX(X_ruler - 3.5)} ${mapY(yRow1)}) (list ${mapX(maxOff + 2.0)} ${mapY(yRow1)}) "KhungBang" 8)\n`;
-            scr += `(drawline (list ${mapX(X_ruler - 3.5)} ${mapY(yRow2)}) (list ${mapX(maxOff + 2.0)} ${mapY(yRow2)}) "KhungBang" 8)\n`;
-            scr += `(drawline (list ${mapX(X_ruler - 3.5)} ${mapY(yRow0)}) (list ${mapX(X_ruler - 3.5)} ${mapY(yRow2)}) "KhungBang" 8)\n`;
-            scr += `(drawline (list ${mapX(maxOff + 2.0)} ${mapY(yRow0)}) (list ${mapX(maxOff + 2.0)} ${mapY(yRow2)}) "KhungBang" 8)\n`;
-
-            // Row Title Texts (Narrow rows height 1.5, column width 3.5)
-            scr += `(drawtext (list ${mapX(X_ruler - 3.2)} ${mapY(yRow1 + 0.55)}) "${unicodeToTCVN3("CAO ĐỘ TỰ NHIÊN (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-            scr += `(drawtext (list ${mapX(X_ruler - 3.2)} ${mapY(yRow2 + 0.55)}) "${unicodeToTCVN3("KHOẢNG CÁCH LẺ (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-
-            // Title Label Above Cross Section
-            scr += `(drawtext (list ${mapX(geom.cx - 5.0)} ${mapY(maxTerrainY + 2.5)}) "COC ${stake.name} (LY TRINH: K${Math.floor(stake.chainage / 1000)}+${(stake.chainage % 1000).toFixed(2)} - MSS: ${geom.stakeDatum.toFixed(2)}M)" 3.0 0 "TextBang" "VnTimeH" 7)\n`;
-
-            // Survey points extension lines and grid data
-            if (stake.points && stake.points.length > 0) {
-              stake.points.forEach((p, pIdx) => {
-                const prevOffset = pIdx > 0 ? stake.points[pIdx - 1].offset : p.offset;
-                const dx = p.offset - prevOffset;
-
-                scr += `(drawline (list ${mapX(p.offset)} ${mapY(p.elevation)}) (list ${mapX(p.offset)} ${mapY(yRow2)}) "KhungBang" 8)\n`;
-                scr += `(drawtext (list ${mapX(p.offset - 0.25)} ${mapY(yRow1 + 0.15)}) "${p.elevation.toFixed(2)}" 1.5 90 "TextBang" "VnTimeH" 7)\n`;
-                scr += `(drawtext (list ${mapX(p.offset - 0.25)} ${mapY(yRow2 + 0.15)}) "${dx.toFixed(2)}" 1.5 90 "TextBang" "VnTimeH" 7)\n`;
-              });
-            }
-
-            // 3. Tim Kenh Centerline Axis
-            scr += `(drawline (list ${mapX(geom.cx)} ${mapY(yRow2)}) (list ${mapX(geom.cx)} ${mapY(geom.cy + geom.H_total + 2.5)}) "TimKenh" 2)\n`;
-
-            // 4. Water Level Line (MNTK)
-            scr += `(drawline (list ${mapX(geom.cx - geom.b/2 - 1.0)} ${mapY(geom.waterLevelAtStake)}) (list ${mapX(geom.cx + geom.b/2 + 1.0)} ${mapY(geom.waterLevelAtStake)}) "MucNuoc" 5)\n`;
-            scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.waterLevelAtStake + 0.1)}) "+ MNTK: ${geom.waterLevelAtStake.toFixed(2)}" 2.2 0 "TextBang" "VnTimeH" 7)\n`;
-            scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.cy + geom.H_total + 0.1)}) "+ Z_dinh: ${geom.topLevelAtStake.toFixed(2)}" 2.2 0 "TextBang" "VnTimeH" 7)\n`;
-            scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.cy - 0.2)}) "+ Z_day: ${geom.dayKenhAtStake.toFixed(2)}" 2.2 0 "TextBang" "VnTimeH" 7)\n`;
-
-            // 5. Natural Terrain Polyline
-            if (stake.points && stake.points.length > 0) {
-              const ptsList = stake.points.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
-              scr += `(drawpoly (list ${ptsList}) "TuNhien" 8 0)\n`;
-            }
-
-            // 6. Concrete Canal Box (without p1/p2 sharp corners)
-            const concBoxPts = [
-              geom.outerLeftTop, geom.p0, geom.p1_top, geom.p1_right,
-              geom.p2_left, geom.p2_top, geom.p3, geom.outerRightTop,
-              geom.outerRightBottom, geom.concRightTop, geom.concRightBottom,
-              geom.concLeftBottom, geom.concLeftTop, geom.outerLeftBottom
-            ];
-            const concPtsList = concBoxPts.map(p => `(list ${mapX(p.x)} ${mapY(p.y)})`).join(' ');
-            scr += `(drawpoly (list ${concPtsList}) "MatKenh_BeTong" 3 1)\n`;
-
-            // 7. Lean Concrete Layer
-            const dlotPts = [
-              geom.dlotLeftTop, geom.dlotRightTop, geom.dlotRightBottom, geom.dlotLeftBottom
-            ];
-            const dlotPtsList = dlotPts.map(p => `(list ${mapX(p.x)} ${mapY(p.y)})`).join(' ');
-            scr += `(drawpoly (list ${dlotPtsList}) "BeTongLot" 1 1)\n`;
-
-            // 8. Embankment Slopes & Bank Tops
-            if (geom.point5) {
-              const ptsList = [geom.point5, geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].map(p => `(list ${mapX(p.x)} ${mapY(p.y)})`).join(' ');
-              scr += `(drawpoly (list ${ptsList}) "MaiDap" 2 0)\n`;
-            } else {
-              const ptsList = [geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].map(p => `(list ${mapX(p.x)} ${mapY(p.y)})`).join(' ');
-              scr += `(drawpoly (list ${ptsList}) "MaiDap" 2 0)\n`;
-            }
-
-            if (geom.point6) {
-              const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight, geom.point6].map(p => `(list ${mapX(p.x)} ${mapY(p.y)})`).join(' ');
-              scr += `(drawpoly (list ${ptsList}) "MaiDap" 2 0)\n`;
-            } else {
-              const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight].map(p => `(list ${mapX(p.x)} ${mapY(p.y)})`).join(' ');
-              scr += `(drawpoly (list ${ptsList}) "MaiDap" 2 0)\n`;
-            }
-
-            // 9. Excavation Slopes (MaiDao)
-            if (geom.isALowerThanTerrain && geom.intersectA) {
-              scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.intersectA.x)} ${mapY(geom.intersectA.y)}) "MaiDao" 6)\n`;
-            }
-            if (geom.isBLowerThanTerrain && geom.intersectB) {
-              scr += `(drawline (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) (list ${mapX(geom.intersectB.x)} ${mapY(geom.intersectB.y)}) "MaiDao" 6)\n`;
-            }
-            if (geom.isLeftCut && geom.cutLeftFinal) {
-              scr += `(drawline (list ${mapX(geom.ditchTopLeft.x)} ${mapY(geom.ditchTopLeft.y)}) (list ${mapX(geom.cutLeftFinal.x)} ${mapY(geom.cutLeftFinal.y)}) "MaiDao" 6)\n`;
-            }
-            if (geom.isRightCut && geom.fillRight) {
-              scr += `(drawline (list ${mapX(geom.ditchTopRightRight.x)} ${mapY(geom.ditchTopRightRight.y)}) (list ${mapX(geom.fillRight.x)} ${mapY(geom.fillRight.y)}) "MaiDao" 6)\n`;
-            }
-
-            // 10. Drainage Ditches
-            if (geom.hasDitchLeft && geom.ditchPolysLeft) {
-              const ptsList = geom.ditchPolysLeft.map(p => `(list ${mapX(p.x)} ${mapY(p.y)})`).join(' ');
-              scr += `(drawpoly (list ${ptsList}) "RanhThoatNuoc" 4 1)\n`;
-            }
-            if (geom.hasDitchRight && geom.ditchPolysRight) {
-              const ptsList = geom.ditchPolysRight.map(p => `(list ${mapX(p.x)} ${mapY(p.y)})`).join(' ');
-              scr += `(drawpoly (list ${ptsList}) "RanhThoatNuoc" 4 1)\n`;
-            }
-
-            // 11. Quantity Legend Card
-            const X_card = maxOff - 5.0;
-            const Y_card = maxTerrainY + 2.0;
-            scr += `(drawpoly (list (list ${mapX(X_card)} ${mapY(Y_card)}) (list ${mapX(X_card + 7.0)} ${mapY(Y_card)}) (list ${mapX(X_card + 7.0)} ${mapY(Y_card - 3.5)}) (list ${mapX(X_card)} ${mapY(Y_card - 3.5)})) "KhungBang" 8 1)\n`;
-            scr += `(drawtext (list ${mapX(X_card + 0.5)} ${mapY(Y_card - 0.8)}) "${unicodeToTCVN3("S đào:")} ${geom.S_dao_trang.toFixed(2)} m2" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-            scr += `(drawtext (list ${mapX(X_card + 0.5)} ${mapY(Y_card - 1.5)}) "${unicodeToTCVN3("S đắp:")} ${geom.S_dap.toFixed(2)} m2" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-            scr += `(drawtext (list ${mapX(X_card + 0.5)} ${mapY(Y_card - 2.2)}) "${unicodeToTCVN3("S bóc TM:")} ${geom.S_boc_thao_moc.toFixed(2)} m2" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-            scr += `(drawtext (list ${mapX(X_card + 0.5)} ${mapY(Y_card - 2.9)}) "${unicodeToTCVN3("L trồng cỏ:")} ${geom.L_trong_co.toFixed(2)} m" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-            scr += "ZOOM\nE\n";
           });
+
+          scr += `(setvar "CELTYPE" "BYLAYER")\n`;
+          scr += `(setvar "CECOLOR" "BYLAYER")\n`;
+          scr += `(setvar "FILEDIA" 1)\n`;
+          scr += "ZOOM\nE\n";
 
           const formattedScr = scr.replace(/\r?\n/g, '\r\n');
           const blob = new Blob([formattedScr], { type: 'text/plain;charset=utf-8' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `TatCa_MatCatNgang_${stakesToExport.length}Coc.scr`;
+          a.download = `Khung_SoSanh_Thuoc_${stakesToExport.length}Coc.scr`;
           a.click();
           URL.revokeObjectURL(url);
           setIsExportModalOpen(false);
         }}
         onExportDXF={(settings) => {
-          const stakesToExport = terrainStakes.length > 0 ? terrainStakes : [];
-          const { horizontalScale = 1000, verticalScale = 100 } = settings;
-          
-          let dxf = `0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLTYPE\n70\n2\n0\nLTYPE\n2\nDASHED\n70\n0\n3\nDashed __ __ __ __ __ __\n72\n65\n73\n2\n40\n0.75\n49\n0.5\n49\n-0.25\n0\nLTYPE\n2\nCENTER\n70\n0\n3\nCenter ____ _ ____ _ ____\n72\n65\n73\n4\n40\n2.0\n49\n1.25\n49\n-0.25\n49\n0.25\n49\n-0.25\n0\nENDTAB\n0\nTABLE\n2\nSTYLE\n70\n1\n0\nSTYLE\n2\nVnTimeH\n70\n0\n40\n0.0\n41\n1.0\n50\n0.0\n71\n0\n42\n1.5\n3\nvntimeh.shx\n4\n\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n`;
-
-          const gapX = 65.0 * (1000 / horizontalScale);
-
-          const addDxfLine = (x1: number, y1: number, x2: number, y2: number, layer: string, color: number = 7, ltype?: string) => {
-            if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return;
-            dxf += `0\nLINE\n8\n${layer}\n62\n${color}\n10\n${x1.toFixed(3)}\n20\n${y1.toFixed(3)}\n30\n0.0\n11\n${x2.toFixed(3)}\n21\n${y2.toFixed(3)}\n31\n0.0\n`;
-            if (ltype) dxf += `6\n${ltype}\n`;
-          };
-
-          const addDxfText = (txt: string, x: number, y: number, height: number, rot: number = 0, layer: string = "TextBang", color: number = 7) => {
-            if (isNaN(x) || isNaN(y)) return;
-            const encTxt = unicodeToTCVN3(txt);
-            dxf += `0\nTEXT\n8\n${layer}\n62\n${color}\n10\n${x.toFixed(3)}\n20\n${y.toFixed(3)}\n30\n0.0\n40\n${height.toFixed(3)}\n1\n${encTxt}\n50\n${rot.toFixed(3)}\n7\nVnTimeH\n`;
-          };
-
-          const addDxfPolyline = (pts: { x: number; y: number }[], layer: string, color: number = 7, isClosed: boolean = false, ltype?: string) => {
-            if (!pts || pts.length === 0) return;
-            dxf += `0\nLWPOLYLINE\n100\nAcDbEntity\n8\n${layer}\n62\n${color}\n`;
-            if (ltype) dxf += `6\n${ltype}\n`;
-            dxf += `100\nAcDbPolyline\n90\n${pts.length}\n70\n${isClosed ? 1 : 0}\n`;
-            pts.forEach(p => {
-              dxf += `10\n${p.x.toFixed(3)}\n20\n${p.y.toFixed(3)}\n`;
-            });
-          };
-
-          const addDxfSolid = (x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number, layer: string, color: number = 7) => {
-            dxf += `0\nSOLID\n8\n${layer}\n62\n${color}\n10\n${x1.toFixed(3)}\n20\n${y1.toFixed(3)}\n30\n0.0\n11\n${x2.toFixed(3)}\n21\n${y2.toFixed(3)}\n31\n0.0\n12\n${x3.toFixed(3)}\n22\n${y3.toFixed(3)}\n32\n0.0\n13\n${x4.toFixed(3)}\n23\n${y4.toFixed(3)}\n32\n0.0\n`;
-          };
-
-          stakesToExport.forEach((stake, idx) => {
-            const minOff = stake.points && stake.points.length > 0 ? Math.min(...stake.points.map(p => p.offset)) : 0;
-            const maxOff = stake.points && stake.points.length > 0 ? Math.max(...stake.points.map(p => p.offset)) : 20;
-
-            const sheetIdx = Math.floor(idx / 2);
-            const scaleFactor = 1000 / horizontalScale;
-            const leftBound = minOff - 3.5;
-            const rightBound = maxOff + 2.0;
-            const centerM = (leftBound + rightBound) / 2;
-            const X0 = sheetIdx * 385.0 + 192.5 - centerM * scaleFactor;
-
-            const geom = calculateCrossSectionGeometry(
-              stake,
-              computedSegments,
-              segmentHydraulicResults,
-              flowNodes,
-              nodeElevations,
-              crossSectionParams
-            );
-
-            const maxTerrainY = stake.points && stake.points.length > 0 ? Math.max(...stake.points.map(p => p.elevation)) : geom.cy + 2.0;
-            const h_above_datum = maxTerrainY - geom.stakeDatum + 2.5;
-            const Y0 = (idx % 2 === 0) ? 257.0 - h_above_datum * (1000 / verticalScale) : 50.0;
-
-            const mapX = (off: number) => {
-              const val = X0 + (isNaN(off) ? 0 : off) * (1000 / horizontalScale);
-              return Number((isNaN(val) ? X0 : val).toFixed(3));
-            };
-
-            const mapY = (elev: number) => {
-              const val = Y0 + ((isNaN(elev) ? geom.cy : elev) - geom.stakeDatum) * (1000 / verticalScale);
-              return Number((isNaN(val) ? Y0 : val).toFixed(3));
-            };
-
-            const X_ruler = minOff;
-
-            // Draw sheet borders only once per sheet (for the top cross-section)
-            if (idx % 2 === 0) {
-              const sheetX = sheetIdx * 385.0;
-              const outerPts = [
-                { x: sheetX, y: 0 },
-                { x: sheetX + 385.0, y: 0 },
-                { x: sheetX + 385.0, y: 277.0 },
-                { x: sheetX, y: 277.0 }
-              ];
-              addDxfPolyline(outerPts, "KhungBao", 1, true);
-            }
-
-            // 1. Elevation Ruler (KhungBang - White/Color 7, width 0.2, right edge aligned with minOff)
-            const w = 0.2;
-            addDxfLine(mapX(X_ruler - w), mapY(geom.stakeDatum), mapX(X_ruler - w), mapY(maxTerrainY + 2.0), 'KhungBang', 7);
-            addDxfLine(mapX(X_ruler), mapY(geom.stakeDatum), mapX(X_ruler), mapY(maxTerrainY + 2.0), 'KhungBang', 7);
-
-            for (let yElev = Math.floor(geom.stakeDatum); yElev <= Math.ceil(maxTerrainY + 2.0); yElev += 1.0) {
-              // Horizontal segment inside ruler
-              addDxfLine(mapX(X_ruler - w), mapY(yElev), mapX(X_ruler), mapY(yElev), 'KhungBang', 7);
-
-              // Left tick mark (length 0.3)
-              addDxfLine(mapX(X_ruler - w), mapY(yElev), mapX(X_ruler - w - 0.3), mapY(yElev), 'KhungBang', 7);
-
-              // Text label
-              addDxfText(yElev.toFixed(2), mapX(X_ruler - w - 1.4), mapY(yElev - 0.2), 1.6, 0, 'TextBang', 7);
-
-              // Black/White alternating segments (width 0.2)
-              if (yElev < Math.ceil(maxTerrainY + 2.0) && (yElev - Math.floor(geom.stakeDatum)) % 2 === 0) {
-                addDxfSolid(
-                  mapX(X_ruler - w), mapY(yElev),
-                  mapX(X_ruler), mapY(yElev),
-                  mapX(X_ruler - w), mapY(yElev + 1.0),
-                  mapX(X_ruler), mapY(yElev + 1.0),
-                  'KhungBang', 7
-                );
-              }
-            }
-
-            // Write MỨC SO SÁNH label above row 0
-            addDxfText(`MỨC SO SÁNH: Hss = ${geom.stakeDatum.toFixed(2)} m`, mapX(X_ruler - 3.2), mapY(geom.stakeDatum + 0.5), 1.8, 0, "TextBang", 7);
-
-            // 2. Data Table Grid below Datum Line (2 rows: CAO DO TU NHIEN, KHOANG CACH LE)
-            const yRow0 = geom.stakeDatum;
-            const yRow1 = geom.stakeDatum - 1.5;
-            const yRow2 = geom.stakeDatum - 3.0;
-
-            addDxfLine(mapX(X_ruler - 3.5), mapY(yRow0), mapX(maxOff + 2.0), mapY(yRow0), 'KhungBang', 7);
-            addDxfLine(mapX(X_ruler - 3.5), mapY(yRow1), mapX(maxOff + 2.0), mapY(yRow1), 'KhungBang', 7);
-            addDxfLine(mapX(X_ruler - 3.5), mapY(yRow2), mapX(maxOff + 2.0), mapY(yRow2), 'KhungBang', 7);
-            addDxfLine(mapX(X_ruler - 3.5), mapY(yRow0), mapX(X_ruler - 3.5), mapY(yRow2), 'KhungBang', 7);
-            addDxfLine(mapX(maxOff + 2.0), mapY(yRow0), mapX(maxOff + 2.0), mapY(yRow2), 'KhungBang', 7);
-
-            // Row Title Texts (Narrow rows height 1.5, column width 3.5)
-            addDxfText("CAO ĐỘ TỰ NHIÊN (M)", mapX(X_ruler - 3.2), mapY(yRow1 + 0.55), 1.6, 0, "TextBang", 7);
-            addDxfText("KHOẢNG CÁCH LẺ (M)", mapX(X_ruler - 3.2), mapY(yRow2 + 0.55), 1.6, 0, "TextBang", 7);
-
-            // Title Label Above Cross Section
-            addDxfText(`CỌC ${stake.name} (LÝ TRÌNH: K${Math.floor(stake.chainage / 1000)}+${(stake.chainage % 1000).toFixed(2)} - MSS: ${geom.stakeDatum.toFixed(2)}M)`, mapX(geom.cx - 5.0), mapY(maxTerrainY + 2.5), 2.5, 0, "TextBang", 7);
-
-            if (stake.points && stake.points.length > 0) {
-              stake.points.forEach((p, pIdx) => {
-                const prevOffset = pIdx > 0 ? stake.points[pIdx - 1].offset : p.offset;
-                const dx = p.offset - prevOffset;
-
-                addDxfLine(mapX(p.offset), mapY(p.elevation), mapX(p.offset), mapY(yRow2), 'KhungBang', 8);
-
-                addDxfText(p.elevation.toFixed(2), mapX(p.offset - 0.25), mapY(yRow1 + 0.15), 1.5, 90, "TextBang", 7);
-                addDxfText(dx.toFixed(2), mapX(p.offset - 0.25), mapY(yRow2 + 0.15), 1.5, 90, "TextBang", 7);
-              });
-            }
-
-            // 3. Centerline Axis (TimKenh - Yellow/Color 2, CENTER)
-            addDxfLine(mapX(geom.cx), mapY(yRow2), mapX(geom.cx), mapY(geom.cy + geom.H_total + 2.5), 'TimKenh', 2, 'CENTER');
-
-            // 4. Water Level Line (MucNuoc - Blue/Color 5)
-            addDxfLine(mapX(geom.cx - geom.b/2 - 1.0), mapY(geom.waterLevelAtStake), mapX(geom.cx + geom.b/2 + 1.0), mapY(geom.waterLevelAtStake), 'MucNuoc', 5);
-
-            addDxfText(`+ MNTK: ${geom.waterLevelAtStake.toFixed(2)}`, mapX(geom.cx + geom.b/2 + 0.8), mapY(geom.waterLevelAtStake + 0.1), 1.8, 0, "TextBang", 5);
-            addDxfText(`+ Z_ĐỈNH: ${geom.topLevelAtStake.toFixed(2)}`, mapX(geom.cx + geom.b/2 + 0.8), mapY(geom.cy + geom.H_total + 0.1), 1.8, 0, "TextBang", 2);
-            addDxfText(`+ Z_ĐÁY: ${geom.dayKenhAtStake.toFixed(2)}`, mapX(geom.cx + geom.b/2 + 0.8), mapY(geom.cy - 0.2), 1.8, 0, "TextBang", 1);
-
-            // 5. Natural Terrain Line (TuNhien - Grey/Color 8, DASHED)
-            if (stake.points && stake.points.length > 1) {
-              const terPts = stake.points.map(p => ({ x: mapX(p.offset), y: mapY(p.elevation) }));
-              addDxfPolyline(terPts, "TuNhien", 8, false, 'DASHED');
-            }
-
-            // 6. Concrete Canal Box Structure (MatKenh_BeTong - Green/Color 3, without p1/p2 sharp corners)
-            const concBoxPts = [
-              geom.outerLeftTop, geom.p0, geom.p1_top, geom.p1_right,
-              geom.p2_left, geom.p2_top, geom.p3, geom.outerRightTop,
-              geom.outerRightBottom, geom.concRightTop, geom.concRightBottom,
-              geom.concLeftBottom, geom.concLeftTop, geom.outerLeftBottom
-            ].map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-            addDxfPolyline(concBoxPts, "MatKenh_BeTong", 3, true);
-
-            // 7. Lean Concrete Base (BeTongLot - Red/Color 1)
-            const dlotPts = [
-              geom.dlotLeftTop, geom.dlotRightTop, geom.dlotRightBottom, geom.dlotLeftBottom
-            ].map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-            addDxfPolyline(dlotPts, "BeTongLot", 1, true);
-
-            // 8. Embankment Slopes & Bank Tops (MaiDap - Yellow/Color 2)
-            if (geom.point5) {
-              const leftBankPts = [geom.point5, geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-              addDxfPolyline(leftBankPts, "MaiDap", 2, false);
-            } else {
-              const leftBankPts = [geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-              addDxfPolyline(leftBankPts, "MaiDap", 2, false);
-            }
-
-            if (geom.point6) {
-              const rightBankPts = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight, geom.point6].map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-              addDxfPolyline(rightBankPts, "MaiDap", 2, false);
-            } else {
-              const rightBankPts = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight].map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-              addDxfPolyline(rightBankPts, "MaiDap", 2, false);
-            }
-
-            // 9. Excavation Slopes (MaiDao - Magenta/Color 6)
-            if (geom.isALowerThanTerrain && geom.intersectA) {
-              addDxfLine(mapX(geom.pointA.x), mapY(geom.pointA.y), mapX(geom.intersectA.x), mapY(geom.intersectA.y), 'MaiDao', 6);
-            }
-            if (geom.isBLowerThanTerrain && geom.intersectB) {
-              addDxfLine(mapX(geom.pointB.x), mapY(geom.pointB.y), mapX(geom.intersectB.x), mapY(geom.intersectB.y), 'MaiDao', 6);
-            }
-            if (geom.isLeftCut && geom.cutLeftFinal) {
-              addDxfLine(mapX(geom.ditchTopLeft.x), mapY(geom.ditchTopLeft.y), mapX(geom.cutLeftFinal.x), mapY(geom.cutLeftFinal.y), 'MaiDao', 6);
-            }
-            if (geom.isRightCut && geom.fillRight) {
-              addDxfLine(mapX(geom.ditchTopRightRight.x), mapY(geom.ditchTopRightRight.y), mapX(geom.fillRight.x), mapY(geom.fillRight.y), 'MaiDao', 6);
-            }
-
-            // 10. Drainage Ditches (RanhThoatNuoc - Cyan/Color 4)
-            if (geom.hasDitchLeft && geom.ditchPolysLeft) {
-              addDxfPolyline(geom.ditchPolysLeft.map(p => ({ x: mapX(p.x), y: mapY(p.y) })), "RanhThoatNuoc", 4, true);
-            }
-            if (geom.hasDitchRight && geom.ditchPolysRight) {
-              addDxfPolyline(geom.ditchPolysRight.map(p => ({ x: mapX(p.x), y: mapY(p.y) })), "RanhThoatNuoc", 4, true);
-            }
-
-            // 11. Quantity Legend Card
-            const X_card = maxOff - 5.0;
-            const Y_card = maxTerrainY + 2.0;
-            const cardPts = [
-              { x: X_card, y: Y_card },
-              { x: X_card + 7.0, y: Y_card },
-              { x: X_card + 7.0, y: Y_card - 3.5 },
-              { x: X_card, y: Y_card - 3.5 }
-            ].map(p => ({ x: mapX(p.x), y: mapY(p.y) }));
-            addDxfPolyline(cardPts, "KhungBang", 7, true);
-
-            addDxfText(`S đào: ${geom.S_dao_trang.toFixed(2)} m2`, mapX(X_card + 0.5), mapY(Y_card - 0.8), 1.6, 0, "TextBang", 7);
-            addDxfText(`S đắp: ${geom.S_dap.toFixed(2)} m2`, mapX(X_card + 0.5), mapY(Y_card - 1.5), 1.6, 0, "TextBang", 7);
-            addDxfText(`S bóc TM: ${geom.S_boc_thao_moc.toFixed(2)} m2`, mapX(X_card + 0.5), mapY(Y_card - 2.2), 1.6, 0, "TextBang", 7);
-            addDxfText(`L trồng cỏ: ${geom.L_trong_co.toFixed(2)} m`, mapX(X_card + 0.5), mapY(Y_card - 2.9), 1.6, 0, "TextBang", 7);
-          });
-
-          dxf += `0\nENDSEC\n0\nEOF\n`;
-          const blob = new Blob([dxf], { type: 'text/plain;charset=utf-8' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `TatCa_MatCatNgang_${stakesToExport.length}Coc.dxf`;
-          a.click();
-          URL.revokeObjectURL(url);
+          // Cleared for redesign
           setIsExportModalOpen(false);
         }}
         onExportCSV={() => {
