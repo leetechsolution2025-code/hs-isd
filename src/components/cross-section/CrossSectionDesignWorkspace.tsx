@@ -306,13 +306,40 @@ export default function CrossSectionDesignWorkspace({
           scr += `;;========================================================================\n`;
           scr += `(defun createlay (lay col ltp)\n`;
           scr += `  (if (not (tblsearch "LAYER" lay))\n`;
-          scr += `    (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord") '(100 . "AcDbLayerTableRecord") (cons 2 lay) '(70 . 0) (cons 62 col) (cons 6 "Continuous")))\n`;
+          scr += `    (entmake\n`;
+          scr += `      (list\n`;
+          scr += `        '(0 . "LAYER")\n`;
+          scr += `        '(100 . "AcDbSymbolTableRecord")\n`;
+          scr += `        '(100 . "AcDbLayerTableRecord")\n`;
+          scr += `        (cons 2 lay)\n`;
+          scr += `        '(70 . 0)\n`;
+          scr += `        (cons 62 col)\n`;
+          scr += `        (cons 6 "Continuous")\n`;
+          scr += `      )\n`;
+          scr += `    )\n`;
           scr += `  )\n`;
           scr += `)\n`;
           scr += `(createlay "KhungBao" 1 "Continuous")\n`;
           scr += `(createlay "KhungBang" 7 "Continuous")\n`;
           scr += `(createlay "TextBang" 7 "Continuous")\n`;
-          scr += `(if (not (tblsearch "STYLE" "VnTimeH")) (entmake '((0 . "STYLE") (100 . "AcDbSymbolTableRecord") (100 . "AcDbTextStyleTableRecord") (2 . "VnTimeH") (70 . 0) (40 . 0.0) (41 . 1.0) (50 . 0.0) (71 . 0) (42 . 2.5) (3 . "vntimeh.shx") (4 . ""))))\n`;
+          scr += `(if (not (tblsearch "STYLE" "VnTimeH"))\n`;
+          scr += `  (entmake\n`;
+          scr += `    '(\n`;
+          scr += `      (0 . "STYLE")\n`;
+          scr += `      (100 . "AcDbSymbolTableRecord")\n`;
+          scr += `      (100 . "AcDbTextStyleTableRecord")\n`;
+          scr += `      (2 . "VnTimeH")\n`;
+          scr += `      (70 . 0)\n`;
+          scr += `      (40 . 0.0)\n`;
+          scr += `      (41 . 1.0)\n`;
+          scr += `      (50 . 0.0)\n`;
+          scr += `      (71 . 0)\n`;
+          scr += `      (42 . 2.5)\n`;
+          scr += `      (3 . "vntimeh.shx")\n`;
+          scr += `      (4 . "")\n`;
+          scr += `    )\n`;
+          scr += `  )\n`;
+          scr += `)\n`;
           scr += `(defun to3d (p)\n`;
           scr += `  (list (car p) (cadr p) (if (caddr p) (caddr p) 0.0))\n`;
           scr += `)\n`;
@@ -327,11 +354,48 @@ export default function CrossSectionDesignWorkspace({
           scr += `(defun drawline (p1 p2 lay col ltp)\n`;
           scr += `  (setvar "CLAYER" lay)\n`;
           scr += `  (setvar "CECOLOR" (itoa col))\n`;
-          scr += `  (setvar "CELTYPE" (if (or (= ltp "ByLayer") (= ltp "ByBlock") (tblsearch "LTYPE" ltp)) ltp "ByLayer"))\n`;
+          scr += `  (setvar "CELTYPE"\n`;
+          scr += `    (if (or (= (strcase ltp) "BYLAYER") (= (strcase ltp) "BYBLOCK") (tblsearch "LTYPE" ltp))\n`;
+          scr += `      (strcase ltp)\n`;
+          scr += `      "BYLAYER"\n`;
+          scr += `    )\n`;
+          scr += `  )\n`;
           scr += `  (command "_.LINE" p1 p2 "")\n`;
           scr += `)\n`;
           scr += `(defun drawtext (pt txt h rot lay sty col)\n`;
-          scr += `  (entmake (list '(0 . "TEXT") '(100 . "AcDbEntity") (cons 8 lay) (cons 62 col) '(100 . "AcDbText") (cons 10 (to3d pt)) (cons 40 h) (cons 1 txt) (cons 50 (* rot (/ pi 180.0))) (cons 7 (if (tblsearch "STYLE" sty) sty "Standard"))))\n`;
+          scr += `  (entmake\n`;
+          scr += `    (list\n`;
+          scr += `      '(0 . "TEXT")\n`;
+          scr += `      '(100 . "AcDbEntity")\n`;
+          scr += `      (cons 8 lay)\n`;
+          scr += `      (cons 62 col)\n`;
+          scr += `      '(100 . "AcDbText")\n`;
+          scr += `      (cons 10 (to3d pt))\n`;
+          scr += `      (cons 40 h)\n`;
+          scr += `      (cons 1 txt)\n`;
+          scr += `      (cons 50 (* rot (/ pi 180.0)))\n`;
+          scr += `      (cons 7 (if (tblsearch "STYLE" sty) sty "Standard"))\n`;
+          scr += `    )\n`;
+          scr += `  )\n`;
+          scr += `)\n`;
+          scr += `(defun drawtextcenter (pt txt h rot lay sty col)\n`;
+          scr += `  (entmake\n`;
+          scr += `    (list\n`;
+          scr += `      '(0 . "TEXT")\n`;
+          scr += `      '(100 . "AcDbEntity")\n`;
+          scr += `      (cons 8 lay)\n`;
+          scr += `      (cons 62 col)\n`;
+          scr += `      '(100 . "AcDbText")\n`;
+          scr += `      (cons 10 (to3d pt))\n`;
+          scr += `      (cons 40 h)\n`;
+          scr += `      (cons 1 txt)\n`;
+          scr += `      (cons 50 (* rot (/ pi 180.0)))\n`;
+          scr += `      (cons 7 (if (tblsearch "STYLE" sty) sty "Standard"))\n`;
+          scr += `      '(72 . 1)\n`;
+          scr += `      '(73 . 2)\n`;
+          scr += `      (cons 11 (to3d pt))\n`;
+          scr += `    )\n`;
+          scr += `  )\n`;
           scr += `)\n`;
           scr += `(defun drawsolid (p1 p2 p3 p4 lay col)\n`;
           scr += `  (setvar "CLAYER" lay)\n`;
@@ -342,9 +406,13 @@ export default function CrossSectionDesignWorkspace({
 
           const totalSheets = Math.ceil(stakesToExport.length / 2);
           for (let sheetIdx = 0; sheetIdx < totalSheets; sheetIdx++) {
-            const sheetX = sheetIdx * 385.0;
-            scr += `(drawpoly (list (list ${sheetX} 0) (list ${sheetX + 385.0} 0) (list ${sheetX + 385.0} 277.0) (list ${sheetX} 277.0)) "KhungBao" 1 1 "ByLayer")\n`;
+            const rowIdx = Math.floor(sheetIdx / 50);
+            const colIdx = sheetIdx % 50;
+            const sheetX = colIdx * 385.0;
+            const sheetY = -rowIdx * 327.0;
+            scr += `(drawpoly (list (list ${sheetX} ${sheetY}) (list ${sheetX + 385.0} ${sheetY}) (list ${sheetX + 385.0} ${sheetY + 277.0}) (list ${sheetX} ${sheetY + 277.0})) "KhungBao" 1 1 "BYLAYER")\n`;
           }
+          scr += "ZOOM\nE\n";
 
           stakesToExport.forEach((stake, idx) => {
             const pts = stake.points && stake.points.length > 0 ? stake.points : [{ offset: 0.0, elevation: 0.0 }];
@@ -352,18 +420,22 @@ export default function CrossSectionDesignWorkspace({
             const maxOff = Math.max(...pts.map(p => p.offset));
 
             const sheetIdx = Math.floor(idx / 2);
+            const rowIdx = Math.floor(sheetIdx / 50);
+            const colIdx = sheetIdx % 50;
+            const Y_offset = -rowIdx * 327.0;
+
             const scaleFactor = 1000 / horizontalScale;
             const leftBound = minOff - 3.5;
             const rightBound = maxOff + 2.0;
             const centerM = (leftBound + rightBound) / 2;
-            const X0 = sheetIdx * 385.0 + 192.5 - centerM * scaleFactor;
+            const X0 = colIdx * 385.0 + 192.5 - centerM * scaleFactor;
 
             const mapX = (off: number) => {
               const val = X0 + (isNaN(off) ? 0 : off) * (1000 / horizontalScale);
               return Number((isNaN(val) ? X0 : val).toFixed(3));
             };
 
-            const Y_datum = (idx % 2 === 0) ? 175.0 : 50.0;
+            const Y_datum = Y_offset + ((idx % 2 === 0) ? 175.0 : 50.0);
 
             const geom = calculateCrossSectionGeometry(
               stake,
@@ -383,7 +455,7 @@ export default function CrossSectionDesignWorkspace({
             };
 
             // Draw Datum Line (White/Color 7)
-            scr += `(drawline (list ${mapX(minOff - 3.5)} ${Y_datum}) (list ${mapX(maxOff + 2.0)} ${Y_datum}) "KhungBang" 7 "ByLayer")\n`;
+            scr += `(drawline (list ${mapX(minOff - 3.5)} ${Y_datum}) (list ${mapX(maxOff + 2.0)} ${Y_datum}) "KhungBang" 7 "BYLAYER")\n`;
 
             // Draw Datum Label ("MỨC SO SÁNH: [gDatum]")
             scr += `(drawtext (list ${mapX(minOff - 3.2)} ${Y_datum + 0.5}) "${unicodeToTCVN3(`MỨC SO SÁNH: ${gDatum.toFixed(2)}`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
@@ -393,13 +465,13 @@ export default function CrossSectionDesignWorkspace({
             const w = 0.2;
             const yRulerMax = maxTerrainY + 2.0;
 
-            scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(gDatum)}) (list ${mapX(X_ruler - w)} ${mapY(yRulerMax)}) "KhungBang" 7 "ByLayer")\n`;
-            scr += `(drawline (list ${mapX(X_ruler)} ${mapY(gDatum)}) (list ${mapX(X_ruler)} ${mapY(yRulerMax)}) "KhungBang" 7 "ByLayer")\n`;
+            scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(gDatum)}) (list ${mapX(X_ruler - w)} ${mapY(yRulerMax)}) "KhungBang" 7 "BYLAYER")\n`;
+            scr += `(drawline (list ${mapX(X_ruler)} ${mapY(gDatum)}) (list ${mapX(X_ruler)} ${mapY(yRulerMax)}) "KhungBang" 7 "BYLAYER")\n`;
 
             for (let yElev = Math.floor(gDatum); yElev <= Math.ceil(yRulerMax); yElev += 1.0) {
               if (yElev < gDatum - 0.01) continue;
-              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) "KhungBang" 7 "ByLayer")\n`;
-              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler - w - 0.3)} ${mapY(yElev)}) "KhungBang" 7 "ByLayer")\n`;
+              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler - w - 0.3)} ${mapY(yElev)}) "KhungBang" 7 "BYLAYER")\n`;
               
               if (Math.abs(yElev - gDatum) > 0.01) {
                 scr += `(drawtext (list ${mapX(X_ruler - w - 1.4)} ${mapY(yElev - 0.2)}) "${yElev.toFixed(2)}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
@@ -408,6 +480,40 @@ export default function CrossSectionDesignWorkspace({
               if (yElev < Math.ceil(yRulerMax) && (yElev - Math.floor(gDatum)) % 2 === 0) {
                 scr += `(drawsolid (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) (list ${mapX(X_ruler - w)} ${mapY(yElev + 1.0)}) (list ${mapX(X_ruler)} ${mapY(yElev + 1.0)}) "KhungBang" 7)\n`;
               }
+            }
+
+            // Draw Table Grid Frame below Datum Line (2 rows: CAO DO TU NHIEN, KHOANG CACH LE)
+            const yRow0 = Y_datum;
+            const yRow1 = Y_datum - 6.0;
+            const yRow2 = Y_datum - 12.0;
+
+            scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow1}) (list ${mapX(maxOff + 2.0)} ${yRow1}) "KhungBang" 7 "BYLAYER")\n`;
+            scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow2}) (list ${mapX(maxOff + 2.0)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+            scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow0}) (list ${mapX(minOff - 3.5)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+            scr += `(drawline (list ${mapX(minOff)} ${yRow0}) (list ${mapX(minOff)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+            scr += `(drawline (list ${mapX(maxOff + 2.0)} ${yRow0}) (list ${mapX(maxOff + 2.0)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+
+            // Row Title Texts inside the header box
+            scr += `(drawtext (list ${mapX(minOff - 3.2)} ${yRow1 + 2.2}) "${unicodeToTCVN3("CAO ĐỘ TỰ NHIÊN (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
+            scr += `(drawtext (list ${mapX(minOff - 3.2)} ${yRow2 + 2.2}) "${unicodeToTCVN3("KHOẢNG CÁCH LẺ (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
+
+            // Draw vertical column dividers inside the table grid (restricted to Row 2, using White color 7) and fill elevation & distance values
+            if (pts && pts.length > 0) {
+              pts.forEach((p, pIdx) => {
+                // Draw vertical divider in Row 2 (Khoảng cách lẻ) only, using white (color 7)
+                scr += `(drawline (list ${mapX(p.offset)} ${yRow1}) (list ${mapX(p.offset)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+                
+                // Draw elevation text (vertical, rounded to 2 decimals, center-aligned on the divider)
+                scr += `(drawtextcenter (list ${mapX(p.offset)} ${Y_datum - 3.0}) "${p.elevation.toFixed(2)}" 1.5 90 "TextBang" "VnTimeH" 7)\n`;
+
+                // Draw distance text (horizontal, rounded to 2 decimals, center-aligned in the middle of segment)
+                if (pIdx > 0) {
+                  const prevOffset = pts[pIdx - 1].offset;
+                  const dx = p.offset - prevOffset;
+                  const midOffset = (p.offset + prevOffset) / 2;
+                  scr += `(drawtextcenter (list ${mapX(midOffset)} ${Y_datum - 9.0}) "${dx.toFixed(2)}" 1.5 0 "TextBang" "VnTimeH" 7)\n`;
+                }
+              });
             }
           });
 
