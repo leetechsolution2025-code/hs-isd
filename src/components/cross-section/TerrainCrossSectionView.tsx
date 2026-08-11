@@ -367,24 +367,68 @@ export default function TerrainCrossSectionView({
       pointE = findIntersection(pointB, -1, 0);
     }
 
-    // Trường hợp cả hai điểm A, B đều cao hơn/bằng đường địa hình:
-    // Dựng đường thẳng đi qua điểm 3, 4 có hệ số dốc pMDAP đi xuống giao với địa hình tại điểm 5 và 6
-    // Từ 5 và 6 dựng đường thẳng dốc 1 đi xuống giao với đường bóc thảo mộc tại điểm 7 và 8
+    // Dựng đường mái đắp bờ kênh đi qua điểm 3, 4 có hệ số dốc pMDAP đi xuống
+    // Điểm 5: Giao điểm giữa mái đắp bờ trái (từ điểm 3) với đường địa hình tự nhiên (hoặc mái đào móng trái A-C nếu nằm trong hố đào)
+    // Điểm 6: Giao điểm giữa mái đắp bờ phải (từ điểm 4) với đường địa hình tự nhiên (hoặc mái đào móng phải B-D nếu nằm trong hố đào)
     const dayBocThaoMoc = Number(params.dayBocThaoMoc) || 0.2;
-    const isFullFill = !isALowerThanTerrain && !isBLowerThanTerrain;
-    let point5: { x: number; y: number } | null = null;
-    let point6: { x: number; y: number } | null = null;
+    const point5_terrain = findIntersection(bankOuterLeft, -pMDAP, -1);
+    const point6_terrain = findIntersection(bankOuterRight, pMDAP, -1);
+
+    const leftCutDepth = Math.max(0, getTerrainElev(dlotLeftBottom.x) - dlotLeftBottom.y);
+    const rightCutDepth = Math.max(0, getTerrainElev(dlotRightBottom.x) - dlotRightBottom.y);
+    const maxCutDepth = Math.max(leftCutDepth, rightCutDepth);
+
+    const isFullFill = (!isALowerThanTerrain && !isBLowerThanTerrain) || (leftCutDepth < 1.50 && rightCutDepth < 1.50);
+    
+    let point5: { x: number; y: number } | null = point5_terrain;
+
+    if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
+      const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
+      const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
+      if (x5 > intersectA.x && y5 >= pointA.y && y5 <= bankOuterLeft.y) {
+        point5 = { x: x5, y: y5 };
+      }
+    }
+
+    let point6: { x: number; y: number } | null = point6_terrain;
+
+    if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
+      const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
+      const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
+      if (x6 < intersectB.x && y6 >= pointB.y && y6 <= bankOuterRight.y) {
+        point6 = { x: x6, y: y6 };
+      }
+    }
+
     let point7: { x: number; y: number } | null = null;
     let point8: { x: number; y: number } | null = null;
+    let point9: { x: number; y: number } | null = null;
+    let point10: { x: number; y: number } | null = null;
 
-    if (isFullFill) {
-      point5 = findIntersection(bankOuterLeft, -pMDAP, -1);
-      point6 = findIntersection(bankOuterRight, pMDAP, -1);
-      if (point5) {
-        point7 = { x: point5.x + dayBocThaoMoc, y: point5.y - dayBocThaoMoc };
+    // Chỉ khi đất đắp bờ thực sự phủ lên đường địa hình tự nhiên nằm bên ngoài C/D (point5/6 nằm trên địa hình ngoài C/D), mới có bóc thảo mộc
+    const hasLeftSolidTerrainFill = Boolean(
+      point5 && point5_terrain && Math.abs(point5.x - point5_terrain.x) < 0.01 && (!intersectA || point5.x < intersectA.x)
+    );
+    if (hasLeftSolidTerrainFill) {
+      const p5_ter = point5_terrain!;
+      point7 = { x: p5_ter.x + dayBocThaoMoc, y: p5_ter.y - dayBocThaoMoc };
+      if (isALowerThanTerrain && intersectA && pMDAO1 > 0) {
+        const y9 = intersectA.y - dayBocThaoMoc;
+        const x9 = intersectA.x + pMDAO1 * dayBocThaoMoc;
+        point9 = { x: x9, y: y9 };
       }
-      if (point6) {
-        point8 = { x: point6.x - dayBocThaoMoc, y: point6.y - dayBocThaoMoc };
+    }
+
+    const hasRightSolidTerrainFill = Boolean(
+      point6 && point6_terrain && Math.abs(point6.x - point6_terrain.x) < 0.01 && (!intersectB || point6.x > intersectB.x)
+    );
+    if (hasRightSolidTerrainFill) {
+      const p6_ter = point6_terrain!;
+      point8 = { x: p6_ter.x - dayBocThaoMoc, y: p6_ter.y - dayBocThaoMoc };
+      if (isBLowerThanTerrain && intersectB && pMDAO1 > 0) {
+        const y10 = intersectB.y - dayBocThaoMoc;
+        const x10 = intersectB.x - pMDAO1 * dayBocThaoMoc;
+        point10 = { x: x10, y: y10 };
       }
     }
 
@@ -438,28 +482,99 @@ export default function TerrainCrossSectionView({
 
     const S_dao_trang = calculatePolygonArea(excavationCutoutPoly);
 
-    // Diện tích bóc thảo mộc: Hình giới hạn bởi các điểm 5, 7, 8, 6, đường địa hình và đường bóc thảo mộc
-    const strippedPoly: { x: number; y: number }[] = [];
+    // Diện tích bóc thảo mộc: Hình giới hạn bởi các điểm 5, 7, (8), (6), đường địa hình và đường bóc thảo mộc
+    const fullStrippedPoly: { x: number; y: number }[] = [];
+    const leftStrippedPoly: { x: number; y: number }[] = [];
+    const rightStrippedPoly: { x: number; y: number }[] = [];
+
     if (isFullFill && point5 && point6 && point7 && point8) {
-      strippedPoly.push(point5);
-      strippedPoly.push(point7);
+      fullStrippedPoly.push(point5);
+      fullStrippedPoly.push(point7);
       stake.points
         .filter(p => p.offset > point7.x && p.offset < point8.x)
-        .forEach(p => strippedPoly.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
-      strippedPoly.push(point8);
-      strippedPoly.push(point6);
+        .forEach(p => fullStrippedPoly.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+      fullStrippedPoly.push(point8);
+      fullStrippedPoly.push(point6);
       stake.points
         .filter(p => p.offset > point5.x && p.offset < point6.x)
         .slice()
         .reverse()
-        .forEach(p => strippedPoly.push({ x: p.offset, y: p.elevation }));
+        .forEach(p => fullStrippedPoly.push({ x: p.offset, y: p.elevation }));
+    } else {
+      const p5_ter = point5_terrain || point5;
+      if (p5_ter && point7) {
+        const p7 = { x: p5_ter.x + dayBocThaoMoc, y: p5_ter.y - dayBocThaoMoc };
+        const endX = point9 ? point9.x : p5_ter.x;
+        leftStrippedPoly.push(p5_ter);
+        leftStrippedPoly.push(p7);
+        stake.points
+          .filter(p => p.offset >= p7.x && p.offset <= endX)
+          .forEach(p => leftStrippedPoly.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+        if (point9) leftStrippedPoly.push(point9);
+        stake.points
+          .filter(p => p.offset >= p7.x && p.offset <= endX)
+          .slice()
+          .reverse()
+          .forEach(p => leftStrippedPoly.push({ x: p.offset, y: p.elevation }));
+      }
+
+      const p6_ter = point6_terrain || point6;
+      if (p6_ter && point8) {
+        const p8 = { x: p6_ter.x - dayBocThaoMoc, y: p6_ter.y - dayBocThaoMoc };
+        const startX = point10 ? point10.x : p6_ter.x;
+        rightStrippedPoly.push(p6_ter);
+        rightStrippedPoly.push(p8);
+        stake.points
+          .filter(p => p.offset >= startX && p.offset <= p8.x)
+          .forEach(p => rightStrippedPoly.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+        if (point10) rightStrippedPoly.push(point10);
+        stake.points
+          .filter(p => p.offset >= startX && p.offset <= p8.x)
+          .slice()
+          .reverse()
+          .forEach(p => rightStrippedPoly.push({ x: p.offset, y: p.elevation }));
+      }
     }
 
-    const S_boc_thao_moc = calculatePolygonArea(strippedPoly);
+    const S_boc_thao_moc = isFullFill
+      ? calculatePolygonArea(fullStrippedPoly)
+      : calculatePolygonArea(leftStrippedPoly) + calculatePolygonArea(rightStrippedPoly);
 
-    // Đắp bờ và móng kênh (vùng màu vàng đắp hoàn toàn):
-    // Giới hạn bởi: 1, 3, 5, 7, đường bóc thảo mộc (7->8), 8, 6, 4, 2 và mép ngoài mặt cắt kênh nằm dưới điểm 1, 2
+    const leftStrippedPts: { x: number; y: number }[] = [];
+    const p5_ter = point5_terrain || point5;
+    if (p5_ter && point7) {
+      const p7 = { x: p5_ter.x + dayBocThaoMoc, y: p5_ter.y - dayBocThaoMoc };
+      leftStrippedPts.push(p5_ter);
+      leftStrippedPts.push(p7);
+      const endX = point9 ? point9.x : p5_ter.x;
+      stake.points
+        .filter(p => p.offset > p7.x && p.offset < endX)
+        .forEach(p => leftStrippedPts.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+      if (point9) {
+        leftStrippedPts.push(point9);
+      }
+    }
+
+    const rightStrippedPts: { x: number; y: number }[] = [];
+    const p6_ter = point6_terrain || point6;
+    if (p6_ter && point8) {
+      const p8 = { x: p6_ter.x - dayBocThaoMoc, y: p6_ter.y - dayBocThaoMoc };
+      if (point10) {
+        rightStrippedPts.push(point10);
+      }
+      const startX = point10 ? point10.x : p6_ter.x;
+      stake.points
+        .filter(p => p.offset > startX && p.offset < p8.x)
+        .forEach(p => rightStrippedPts.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+      rightStrippedPts.push(p8);
+      rightStrippedPts.push(p6_ter);
+    }
+
+    // Đắp bờ và móng kênh (vùng màu vàng):
     const fullEmbankmentPoly: { x: number; y: number }[] = [];
+    const leftEmbankmentPoly: { x: number; y: number }[] = [];
+    const rightEmbankmentPoly: { x: number; y: number }[] = [];
+
     if (isFullFill && point5 && point6 && point7 && point8) {
       fullEmbankmentPoly.push(bankInnerLeft);  // Điểm 1
       fullEmbankmentPoly.push(bankOuterLeft);  // Điểm 3
@@ -485,32 +600,59 @@ export default function TerrainCrossSectionView({
       fullEmbankmentPoly.push(concLeftBottom);
       fullEmbankmentPoly.push(concLeftTop);
       fullEmbankmentPoly.push(outerLeftBottom);
+    } else {
+      if (point5) {
+        leftEmbankmentPoly.push(bankInnerLeft);   // Điểm 1
+        leftEmbankmentPoly.push(bankOuterLeft);   // Điểm 3
+        leftEmbankmentPoly.push(point5);          // Điểm 5
+        if (point7) leftEmbankmentPoly.push(point7); // Điểm 7
+        if (point9) leftEmbankmentPoly.push(point9); // Điểm 9
+        leftEmbankmentPoly.push(pointA);          // Điểm A
+        leftEmbankmentPoly.push(dlotLeftBottom);
+        leftEmbankmentPoly.push(concLeftBottom);
+        leftEmbankmentPoly.push(concLeftTop);
+        leftEmbankmentPoly.push(outerLeftBottom);
+      }
+      if (point6) {
+        rightEmbankmentPoly.push(bankInnerRight);  // Điểm 2
+        rightEmbankmentPoly.push(bankOuterRight);  // Điểm 4
+        rightEmbankmentPoly.push(point6);         // Điểm 6
+        if (point8) rightEmbankmentPoly.push(point8); // Điểm 8
+        if (point10) rightEmbankmentPoly.push(point10); // Điểm 10
+        rightEmbankmentPoly.push(pointB);          // Điểm B
+        rightEmbankmentPoly.push(dlotRightBottom);
+        rightEmbankmentPoly.push(concRightBottom);
+        rightEmbankmentPoly.push(concRightTop);
+        rightEmbankmentPoly.push(outerRightBottom);
+      }
     }
 
-    const S_dap = calculatePolygonArea(fullEmbankmentPoly);
+    const S_dap = isFullFill 
+      ? calculatePolygonArea(fullEmbankmentPoly)
+      : calculatePolygonArea(leftEmbankmentPoly) + calculatePolygonArea(rightEmbankmentPoly);
 
     // L trồng cỏ = tổng chiều dài các mái đắp bờ kênh (đoạn 3->5 và 4->6)
     const L_35 = point5 ? Math.sqrt(Math.pow(point5.x - bankOuterLeft.x, 2) + Math.pow(point5.y - bankOuterLeft.y, 2)) : 0;
     const L_46 = point6 ? Math.sqrt(Math.pow(point6.x - bankOuterRight.x, 2) + Math.pow(point6.y - bankOuterRight.y, 2)) : 0;
     const L_trong_co = L_35 + L_46;
 
-    // Xác định 2 điểm giới hạn cắt bỏ đường địa hình giữa C-D, C-E, E-D, hoặc 5-6
+    // Xác định 2 điểm giới hạn cắt bỏ đường địa hình giữa C-D
     let leftCutPoint: { x: number; y: number } | null = null;
     if (intersectA) {
       leftCutPoint = intersectA; // Điểm C
+    } else if (point5) {
+      leftCutPoint = point5;     // Điểm 5
     } else if (pointE && isBLowerThanTerrain) {
       leftCutPoint = pointE;     // Điểm E khi B thấp hơn địa hình
-    } else if (isFullFill && point5) {
-      leftCutPoint = point5;     // Điểm 5 khi đắp toàn bộ
     }
 
     let rightCutPoint: { x: number; y: number } | null = null;
     if (intersectB) {
       rightCutPoint = intersectB; // Điểm D
+    } else if (point6) {
+      rightCutPoint = point6;     // Điểm 6
     } else if (pointE && isALowerThanTerrain) {
-      rightCutPoint = pointE;      // Điểm E khi A thấp hơn địa hình
-    } else if (isFullFill && point6) {
-      rightCutPoint = point6;      // Điểm 6 khi đắp toàn bộ
+      rightCutPoint = pointE;     // Điểm E khi A thấp hơn địa hình
     }
 
     let trenchTopLeft = trenchLeftBottom;
@@ -880,33 +1022,63 @@ export default function TerrainCrossSectionView({
     }
     const terrainPts = extTerrainPts.map(p => `${toSvgX(p.offset)},${toSvgY(p.elevation)}`).join(' ');
 
-    // Xây dựng chuỗi điểm SVG cho đoạn địa hình bên trái và bên phải (bỏ hẳn đoạn giữa C và D)
+    // Xây dựng chuỗi điểm SVG cho đường địa hình gốc (bảo toàn 100% không biến dạng)
+    // Đoạn bên ngoài phạm vi đắp/đào dùng nét liền dày, đoạn ở giữa (bao gồm hố đào & phần bóc thảo mộc) dùng nét đứt mảnh
+    const leftCutX = (hasLeftSolidTerrainFill && point5_terrain)
+      ? point5_terrain.x
+      : (intersectA ? intersectA.x : (point5 ? point5.x : null));
+
+    const rightCutX = (hasRightSolidTerrainFill && point6_terrain)
+      ? point6_terrain.x
+      : (intersectB ? intersectB.x : (point6 ? point6.x : null));
+
     let leftTerrainSvgPts = '';
     let rightTerrainSvgPts = '';
+    let middleTerrainSvgPts = '';
 
-    if (leftCutPoint) {
-      const leftPts = extTerrainPts.filter(p => p.offset < leftCutPoint!.x);
-      leftPts.push({ offset: leftCutPoint.x, elevation: leftCutPoint.y });
+    if (leftCutX !== null && rightCutX !== null && leftCutX < rightCutX) {
+      const leftCutElev = getTerrainElev(leftCutX);
+      const rightCutElev = getTerrainElev(rightCutX);
+
+      const leftPts = extTerrainPts.filter(p => p.offset < leftCutX);
+      leftPts.push({ offset: leftCutX, elevation: leftCutElev });
       leftTerrainSvgPts = ptsToSvg(leftPts.map(p => `${p.offset},${p.elevation}`).join(' '));
-    }
 
-    if (rightCutPoint) {
-      const rightPts = [{ offset: rightCutPoint.x, elevation: rightCutPoint.y }];
-      extTerrainPts.filter(p => p.offset > rightCutPoint!.x).forEach(p => rightPts.push(p));
+      const midPts: { offset: number; elevation: number }[] = [];
+      midPts.push({ offset: leftCutX, elevation: leftCutElev });
+      extTerrainPts
+        .filter(p => p.offset > leftCutX && p.offset < rightCutX)
+        .forEach(p => midPts.push(p));
+      midPts.push({ offset: rightCutX, elevation: rightCutElev });
+      middleTerrainSvgPts = ptsToSvg(midPts.map(p => `${p.offset},${p.elevation}`).join(' '));
+
+      const rightPts = [{ offset: rightCutX, elevation: rightCutElev }];
+      extTerrainPts.filter(p => p.offset > rightCutX).forEach(p => rightPts.push(p));
       rightTerrainSvgPts = ptsToSvg(rightPts.map(p => `${p.offset},${p.elevation}`).join(' '));
     }
 
     // Đường bóc hữu cơ / thảo mộc (hạ thấp đường địa hình xuống một khoảng dayBocThaoMoc, giới hạn chính xác từ Điểm 7 đến Điểm 8)
-    let strippedTerrainSvgPts = '';
-    if (isFullFill && point7 && point8) {
-      const strippedPts: { x: number; y: number }[] = [];
-      strippedPts.push(point7);
+    let fullStrippedSvgPts = '';
+    if (isFullFill && point5 && point6 && point7 && point8) {
+      const pts: { x: number; y: number }[] = [];
+      pts.push(point5);
+      pts.push(point7);
       stake.points
         .filter(p => p.offset > point7.x && p.offset < point8.x)
-        .forEach(p => strippedPts.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
-      strippedPts.push(point8);
+        .forEach(p => pts.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+      pts.push(point8);
+      pts.push(point6);
+      fullStrippedSvgPts = ptsToSvg(pts.map(p => `${p.x},${p.y}`).join(' '));
+    }
 
-      strippedTerrainSvgPts = ptsToSvg(strippedPts.map(p => `${p.x},${p.y}`).join(' '));
+    let leftStrippedSvgPts = '';
+    if (leftStrippedPts.length > 0) {
+      leftStrippedSvgPts = ptsToSvg(leftStrippedPts.map(p => `${p.x},${p.y}`).join(' '));
+    }
+
+    let rightStrippedSvgPts = '';
+    if (rightStrippedPts.length > 0) {
+      rightStrippedSvgPts = ptsToSvg(rightStrippedPts.map(p => `${p.x},${p.y}`).join(' '));
     }
 
     const firstPt = extTerrainPts[0];
@@ -1019,6 +1191,15 @@ export default function TerrainCrossSectionView({
         {/* Terrain fill (original terrain) */}
         <polygon points={terrainFill} fill="#d4c5a0" fillOpacity="0.4" clipPath="url(#drawArea)" />
 
+        {/* Excavation Earth Area (Cutout filled with white) bounded by C-A-B-D and terrain */}
+        {excavationCutoutPoly.length > 0 && (
+          <polygon
+            points={ptsToSvg(excavationCutoutPoly.map(p => `${p.x},${p.y}`).join(' '))}
+            fill="#ffffff"
+            clipPath="url(#drawArea)"
+          />
+        )}
+
         {/* Full Embankment Area fill (Vùng đắp hoàn toàn màu vàng) */}
         {showOverlay && isFullFill && fullEmbankmentPoly.length > 0 && (
           <polygon
@@ -1031,19 +1212,47 @@ export default function TerrainCrossSectionView({
           />
         )}
 
-        {/* Excavation Earth Area (Cutout filled with white) bounded by C-A-B-D and terrain */}
-        {excavationCutoutPoly.length > 0 && (
-          <polygon
-            points={ptsToSvg(excavationCutoutPoly.map(p => `${p.x},${p.y}`).join(' '))}
-            fill="#ffffff"
-            clipPath="url(#drawArea)"
-          />
+        {/* Partial Embankment Area fill (Vùng đắp bờ kênh màu vàng ở mặt cắt đào/bán đào) */}
+        {showOverlay && !isFullFill && (
+          <>
+            {leftEmbankmentPoly.length > 0 && (
+              <polygon
+                points={ptsToSvg(leftEmbankmentPoly.map(p => `${p.x},${p.y}`).join(' '))}
+                fill="#fef08a"
+                fillOpacity="0.85"
+                stroke="#eab308"
+                strokeWidth="1"
+                clipPath="url(#drawArea)"
+              />
+            )}
+            {rightEmbankmentPoly.length > 0 && (
+              <polygon
+                points={ptsToSvg(rightEmbankmentPoly.map(p => `${p.x},${p.y}`).join(' '))}
+                fill="#fef08a"
+                fillOpacity="0.85"
+                stroke="#eab308"
+                strokeWidth="1"
+                clipPath="url(#drawArea)"
+              />
+            )}
+          </>
         )}
 
-        {/* Terrain line: Bỏ hẳn đoạn địa hình ở giữa hai điểm C và D (hoặc C-E, E-D) */}
+        {/* Terrain line: Đoạn 2 bên nét liền dày, đoạn ở giữa nét đứt mảnh */}
         {leftCutPoint || rightCutPoint ? (
           <>
             {leftTerrainSvgPts && <polyline points={leftTerrainSvgPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />}
+            {middleTerrainSvgPts && (
+              <polyline
+                points={middleTerrainSvgPts}
+                fill="none"
+                stroke="#92400e"
+                strokeWidth="1.2"
+                strokeDasharray="5,4"
+                opacity="0.75"
+                clipPath="url(#drawArea)"
+              />
+            )}
             {rightTerrainSvgPts && <polyline points={rightTerrainSvgPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />}
           </>
         ) : (
@@ -1051,14 +1260,18 @@ export default function TerrainCrossSectionView({
         )}
 
         {/* Stripped terrain line (bóc thảo mộc) lowered by dayBocThaoMoc */}
-        {isFullFill && strippedTerrainSvgPts && (
-          <polyline
-            points={strippedTerrainSvgPts}
-            fill="none"
-            stroke="#92400e"
-            strokeWidth="2.5"
-            clipPath="url(#drawArea)"
-          />
+        {isFullFill && fullStrippedSvgPts && (
+          <polyline points={fullStrippedSvgPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />
+        )}
+        {!isFullFill && (
+          <>
+            {leftStrippedSvgPts && (
+              <polyline points={leftStrippedSvgPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />
+            )}
+            {rightStrippedSvgPts && (
+              <polyline points={rightStrippedSvgPts} fill="none" stroke="#92400e" strokeWidth="2.5" clipPath="url(#drawArea)" />
+            )}
+          </>
         )}
 
         {/* Grid lines */}
@@ -1192,7 +1405,7 @@ export default function TerrainCrossSectionView({
           />
         )}
 
-        {/* Bottom corner points A, B, 1, 2, 3, 4, C, D, E, 5, 6, 7, 8 */}
+        {/* Bottom corner points A, B, 1, 2, 3, 4, C, D, E, 5, 6, 7, 8, 9, 10 */}
         {showPoints && (
           <g clipPath="url(#drawArea)">
             {/* Point A (Bottom Left) */}
@@ -1274,24 +1487,36 @@ export default function TerrainCrossSectionView({
                 <text x={toSvgX(point8.x) + 6} y={toSvgY(point8.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">8</text>
               </>
             )}
+
+            {/* Point 9 (Intersection of left stripped terrain line with slope C-A) */}
+            {point9 && (
+              <>
+                <circle cx={toSvgX(point9.x)} cy={toSvgY(point9.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(point9.x) - 6} y={toSvgY(point9.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="end">9</text>
+              </>
+            )}
+
+            {/* Point 11 (Intersection of right stripped terrain line with slope D-B) */}
+            {point10 && (
+              <>
+                <circle cx={toSvgX(point10.x)} cy={toSvgY(point10.y)} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                <text x={toSvgX(point10.x) + 6} y={toSvgY(point10.y) + 16} fontSize="12" fontWeight="bold" fill="#dc2626" textAnchor="start">11</text>
+              </>
+            )}
           </g>
         )}
 
-        {/* Info Legend (S đào, S đắp, S bóc thảo mộc & L trồng cỏ area display) */}
+        {/* Info Legend Card (Luôn hiển thị đầy đủ 4 thành phần khối lượng) */}
         <g transform={`translate(${margin.left + drawW - 170}, ${margin.top + 20})`}>
           <rect
             x="0" y="0"
-            width="155" height={isFullFill ? "96" : "32"}
+            width="155" height="96"
             fill="white" stroke="#cbd5e1" strokeWidth="1" rx="6" opacity="0.95"
           />
           <text x="12" y="21" fontSize="12" fill="#0f172a" fontWeight="700">S đào: {S_dao_trang.toFixed(2)} m²</text>
-          {isFullFill && (
-            <>
-              <text x="12" y="41" fontSize="12" fill="#ca8a04" fontWeight="700">S đắp: {S_dap.toFixed(2)} m²</text>
-              <text x="12" y="61" fontSize="12" fill="#92400e" fontWeight="700">S bóc TM: {S_boc_thao_moc.toFixed(2)} m²</text>
-              <text x="12" y="81" fontSize="12" fill="#16a34a" fontWeight="700">L trồng cỏ: {L_trong_co.toFixed(2)} m</text>
-            </>
-          )}
+          <text x="12" y="41" fontSize="12" fill="#ca8a04" fontWeight="700">S đắp: {S_dap.toFixed(2)} m²</text>
+          <text x="12" y="61" fontSize="12" fill="#92400e" fontWeight="700">S bóc TM: {S_boc_thao_moc.toFixed(2)} m²</text>
+          <text x="12" y="81" fontSize="12" fill="#16a34a" fontWeight="700">L trồng cỏ: {L_trong_co.toFixed(2)} m</text>
         </g>
 
         {/* Elevation axis labels (right) */}

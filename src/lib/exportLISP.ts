@@ -22,13 +22,11 @@ export function generateProfileLISP(data: any[], settings: any, landmarkData: { 
   const X0 = 0;
   const Y0 = 0; // Datumn line Y
 
-  let scr = "";
+  let scr = ";;========================================================================\n";
+  scr += "(setvar \"OSMODE\" 0)\n";
   scr += ";;========================================================================\n";
   scr += ";; AUTOCAD SCRIPT TO DRAW LONGITUDINAL PROFILE\n";
   scr += ";;========================================================================\n";
-
-  // Disable OSNAP
-  scr += "OSMODE\n0\n";
 
   // Load Linetype and define Text Style ONLY if they don't exist
   // This prevents AutoCAD from asking "Reload?" and breaking the script sync

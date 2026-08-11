@@ -93,17 +93,7 @@ export default function ExportSettingsOffcanvas({
               </div>
             </div>
 
-            <div className="space-y-1.5 pt-2">
-              <label className="text-xs font-medium text-slate-600">Mức so sánh</label>
-              <input 
-                type="number" 
-                placeholder="Tự động tính toán (để trống)"
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                value={settings.datumElevation !== null ? settings.datumElevation : ''}
-                onChange={(e) => setSettings({...settings, datumElevation: e.target.value ? Number(e.target.value) : null})}
-              />
-              <p className="text-[11px] text-slate-500 mt-1">Nếu để trống, hệ thống sẽ lấy cao độ thấp nhất làm mức so sánh.</p>
-            </div>
+
             
             <div className="space-y-1.5 pt-2">
               <label className="text-xs font-medium text-slate-600">Tiền tố tên cọc</label>
