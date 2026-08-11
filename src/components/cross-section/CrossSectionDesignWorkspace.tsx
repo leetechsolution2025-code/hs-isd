@@ -404,6 +404,30 @@ export default function CrossSectionDesignWorkspace({
           scr += `  (command "_.SOLID" p1 p2 p3 p4 "")\n`;
           scr += `)\n`;
 
+          // Pre-calculate heights for all stakes
+          const stakeHeights = stakesToExport.map((stake) => {
+            const pts = stake.points && stake.points.length > 0 ? stake.points : [{ offset: 0.0, elevation: 0.0 }];
+            const minTerrainY = Math.min(...pts.map(p => p.elevation));
+            const maxTerrainY = Math.max(...pts.map(p => p.elevation));
+            
+            const geom = calculateCrossSectionGeometry(
+              stake,
+              computedSegments,
+              segmentHydraulicResults,
+              flowNodes,
+              nodeElevations,
+              crossSectionParams
+            );
+            const gDatum = isNaN(geom.stakeDatum) ? Math.floor(minTerrainY) - 2.0 : geom.stakeDatum;
+            const yRulerMax = maxTerrainY + 2.0;
+            const H_profile = (yRulerMax - gDatum) * (1000 / verticalScale);
+            return {
+              H_profile,
+              H_total: H_profile + 12.0, // profile height + 12mm table
+              gDatum
+            };
+          });
+
           const totalSheets = Math.ceil(stakesToExport.length / 2);
           for (let sheetIdx = 0; sheetIdx < totalSheets; sheetIdx++) {
             const rowIdx = Math.floor(sheetIdx / 50);
@@ -435,7 +459,23 @@ export default function CrossSectionDesignWorkspace({
               return Number((isNaN(val) ? X0 : val).toFixed(3));
             };
 
-            const Y_datum = Y_offset + ((idx % 2 === 0) ? 175.0 : 50.0);
+            // Dynamic Vertical Layout Calculation
+            const hasSecond = (sheetIdx * 2 + 1) < stakesToExport.length;
+            const H1 = stakeHeights[sheetIdx * 2].H_total;
+            const H2 = hasSecond ? stakeHeights[sheetIdx * 2 + 1].H_total : 0;
+            
+            let Y_datum = 0;
+            if (hasSecond) {
+              const gap = (277.0 - H1 - H2) / 3;
+              if (idx % 2 === 0) {
+                Y_datum = Y_offset + (2 * gap + H2 + 12.0);
+              } else {
+                Y_datum = Y_offset + (gap + 12.0);
+              }
+            } else {
+              const gap = (277.0 - H1) / 2;
+              Y_datum = Y_offset + (gap + 12.0);
+            }
 
             const geom = calculateCrossSectionGeometry(
               stake,
