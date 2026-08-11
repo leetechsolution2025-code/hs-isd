@@ -404,8 +404,25 @@ export default function CrossSectionDesignWorkspace({
           scr += `  (command "_.SOLID" p1 p2 p3 p4 "")\n`;
           scr += `)\n`;
 
-          // Pre-calculate heights for all stakes
-          const stakeHeights = stakesToExport.map((stake) => {
+          interface SheetStake {
+            stake: CrossSectionStake;
+            idxInSheet: number;
+            heights: {
+              H_profile: number;
+              H_total: number;
+              gDatum: number;
+            };
+          }
+          interface SheetLayout {
+            sheetIdx: number;
+            stakes: SheetStake[];
+            totalHeightOccupied: number;
+          }
+
+          const sheets: SheetLayout[] = [];
+          let currentSheet: SheetLayout = { sheetIdx: 0, stakes: [], totalHeightOccupied: 0 };
+
+          stakesToExport.forEach((stake) => {
             const pts = stake.points && stake.points.length > 0 ? stake.points : [{ offset: 0.0, elevation: 0.0 }];
             const minTerrainY = Math.min(...pts.map(p => p.elevation));
             const maxTerrainY = Math.max(...pts.map(p => p.elevation));
@@ -421,14 +438,44 @@ export default function CrossSectionDesignWorkspace({
             const gDatum = isNaN(geom.stakeDatum) ? Math.floor(minTerrainY) - 2.0 : geom.stakeDatum;
             const yRulerMax = maxTerrainY + 2.0;
             const H_profile = (yRulerMax - gDatum) * (1000 / verticalScale);
-            return {
-              H_profile,
-              H_total: H_profile + 12.0, // profile height + 12mm table
-              gDatum
+            const H_total = H_profile + 12.0; // profile height + 12mm table
+            
+            const stakeInfo: SheetStake = {
+              stake,
+              idxInSheet: 0,
+              heights: { H_profile, H_total, gDatum }
             };
+
+            if (currentSheet.stakes.length === 0) {
+              stakeInfo.idxInSheet = 0;
+              currentSheet.stakes.push(stakeInfo);
+              currentSheet.totalHeightOccupied = H_total;
+            } else {
+              const H1 = currentSheet.stakes[0].heights.H_total;
+              const H2 = H_total;
+              // If combined height of both cross sections exceeds 250mm, start a new sheet
+              if (H1 + H2 <= 250.0) {
+                stakeInfo.idxInSheet = 1;
+                currentSheet.stakes.push(stakeInfo);
+                currentSheet.totalHeightOccupied += H_total;
+                sheets.push(currentSheet);
+                currentSheet = { sheetIdx: sheets.length, stakes: [], totalHeightOccupied: 0 };
+              } else {
+                sheets.push(currentSheet);
+                currentSheet = { sheetIdx: sheets.length, stakes: [], totalHeightOccupied: 0 };
+                
+                stakeInfo.idxInSheet = 0;
+                currentSheet.stakes.push(stakeInfo);
+                currentSheet.totalHeightOccupied = H_total;
+              }
+            }
           });
 
-          const totalSheets = Math.ceil(stakesToExport.length / 2);
+          if (currentSheet.stakes.length > 0) {
+            sheets.push(currentSheet);
+          }
+
+          const totalSheets = sheets.length;
           for (let sheetIdx = 0; sheetIdx < totalSheets; sheetIdx++) {
             const rowIdx = Math.floor(sheetIdx / 50);
             const colIdx = sheetIdx % 50;
@@ -438,123 +485,124 @@ export default function CrossSectionDesignWorkspace({
           }
           scr += "ZOOM\nE\n";
 
-          stakesToExport.forEach((stake, idx) => {
-            const pts = stake.points && stake.points.length > 0 ? stake.points : [{ offset: 0.0, elevation: 0.0 }];
-            const minOff = Math.min(...pts.map(p => p.offset));
-            const maxOff = Math.max(...pts.map(p => p.offset));
-
-            const sheetIdx = Math.floor(idx / 2);
+          sheets.forEach((sheet) => {
+            const sheetIdx = sheet.sheetIdx;
             const rowIdx = Math.floor(sheetIdx / 50);
             const colIdx = sheetIdx % 50;
             const Y_offset = -rowIdx * 327.0;
 
-            const scaleFactor = 1000 / horizontalScale;
-            const leftBound = minOff - 3.5;
-            const rightBound = maxOff + 2.0;
-            const centerM = (leftBound + rightBound) / 2;
-            const X0 = colIdx * 385.0 + 192.5 - centerM * scaleFactor;
-
-            const mapX = (off: number) => {
-              const val = X0 + (isNaN(off) ? 0 : off) * (1000 / horizontalScale);
-              return Number((isNaN(val) ? X0 : val).toFixed(3));
-            };
-
-            // Dynamic Vertical Layout Calculation
-            const hasSecond = (sheetIdx * 2 + 1) < stakesToExport.length;
-            const H1 = stakeHeights[sheetIdx * 2].H_total;
-            const H2 = hasSecond ? stakeHeights[sheetIdx * 2 + 1].H_total : 0;
+            const hasSecond = sheet.stakes.length === 2;
+            const H1 = sheet.stakes[0].heights.H_total;
+            const H2 = hasSecond ? sheet.stakes[1].heights.H_total : 0;
             
-            let Y_datum = 0;
+            let gap = 0;
             if (hasSecond) {
-              const gap = (277.0 - H1 - H2) / 3;
-              if (idx % 2 === 0) {
-                Y_datum = Y_offset + (2 * gap + H2 + 12.0);
+              gap = (277.0 - H1 - H2) / 3;
+            } else {
+              gap = (277.0 - H1) / 2;
+            }
+
+            sheet.stakes.forEach((stakeItem) => {
+              const stake = stakeItem.stake;
+              const idxInSheet = stakeItem.idxInSheet;
+              const { H_profile, H_total, gDatum } = stakeItem.heights;
+
+              let Y_datum = 0;
+              if (hasSecond) {
+                if (idxInSheet === 0) {
+                  Y_datum = Y_offset + (2 * gap + H2 + 12.0);
+                } else {
+                  Y_datum = Y_offset + (gap + 12.0);
+                }
               } else {
                 Y_datum = Y_offset + (gap + 12.0);
               }
-            } else {
-              const gap = (277.0 - H1) / 2;
-              Y_datum = Y_offset + (gap + 12.0);
-            }
 
-            const geom = calculateCrossSectionGeometry(
-              stake,
-              computedSegments,
-              segmentHydraulicResults,
-              flowNodes,
-              nodeElevations,
-              crossSectionParams
-            );
-            const minTerrainY = Math.min(...pts.map(p => p.elevation));
-            const maxTerrainY = Math.max(...pts.map(p => p.elevation));
-            const gDatum = isNaN(geom.stakeDatum) ? Math.floor(minTerrainY) - 2.0 : geom.stakeDatum;
+              const pts = stake.points && stake.points.length > 0 ? stake.points : [{ offset: 0.0, elevation: 0.0 }];
+              const minOff = Math.min(...pts.map(p => p.offset));
+              const maxOff = Math.max(...pts.map(p => p.offset));
 
-            const mapY = (elev: number) => {
-              const val = Y_datum + (elev - gDatum) * (1000 / verticalScale);
-              return Number((isNaN(val) ? Y_datum : val).toFixed(3));
-            };
+              const scaleFactor = 1000 / horizontalScale;
+              const leftBound = minOff - 3.5;
+              const rightBound = maxOff + 2.0;
+              const centerM = (leftBound + rightBound) / 2;
+              const X0 = colIdx * 385.0 + 192.5 - centerM * scaleFactor;
 
-            // Draw Datum Line (White/Color 7)
-            scr += `(drawline (list ${mapX(minOff - 3.5)} ${Y_datum}) (list ${mapX(maxOff + 2.0)} ${Y_datum}) "KhungBang" 7 "BYLAYER")\n`;
+              const mapX = (off: number) => {
+                const val = X0 + (isNaN(off) ? 0 : off) * (1000 / horizontalScale);
+                return Number((isNaN(val) ? X0 : val).toFixed(3));
+              };
 
-            // Draw Datum Label ("MỨC SO SÁNH: [gDatum]")
-            scr += `(drawtext (list ${mapX(minOff - 3.2)} ${Y_datum + 0.5}) "${unicodeToTCVN3(`MỨC SO SÁNH: ${gDatum.toFixed(2)}`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+              const mapY = (elev: number) => {
+                const val = Y_datum + (elev - gDatum) * (1000 / verticalScale);
+                return Number((isNaN(val) ? Y_datum : val).toFixed(3));
+              };
 
-            // Draw Elevation Ruler (aligned at X_ruler = minOff)
-            const X_ruler = minOff;
-            const w = 0.2;
-            const yRulerMax = maxTerrainY + 2.0;
+              const minTerrainY = Math.min(...pts.map(p => p.elevation));
+              const maxTerrainY = Math.max(...pts.map(p => p.elevation));
 
-            scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(gDatum)}) (list ${mapX(X_ruler - w)} ${mapY(yRulerMax)}) "KhungBang" 7 "BYLAYER")\n`;
-            scr += `(drawline (list ${mapX(X_ruler)} ${mapY(gDatum)}) (list ${mapX(X_ruler)} ${mapY(yRulerMax)}) "KhungBang" 7 "BYLAYER")\n`;
+              // Draw Datum Line (White/Color 7)
+              scr += `(drawline (list ${mapX(minOff - 3.5)} ${Y_datum}) (list ${mapX(maxOff + 2.0)} ${Y_datum}) "KhungBang" 7 "BYLAYER")\n`;
 
-            for (let yElev = Math.floor(gDatum); yElev <= Math.ceil(yRulerMax); yElev += 1.0) {
-              if (yElev < gDatum - 0.01) continue;
-              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) "KhungBang" 7 "BYLAYER")\n`;
-              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler - w - 0.3)} ${mapY(yElev)}) "KhungBang" 7 "BYLAYER")\n`;
-              
-              if (Math.abs(yElev - gDatum) > 0.01) {
-                scr += `(drawtext (list ${mapX(X_ruler - w - 1.4)} ${mapY(yElev - 0.2)}) "${yElev.toFixed(2)}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-              }
+              // Draw Datum Label ("MỨC SO SÁNH: [gDatum]")
+              scr += `(drawtext (list ${mapX(minOff - 3.2)} ${Y_datum + 0.5}) "${unicodeToTCVN3(`MỨC SO SÁNH: ${gDatum.toFixed(2)}`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
 
-              if (yElev < Math.ceil(yRulerMax) && (yElev - Math.floor(gDatum)) % 2 === 0) {
-                scr += `(drawsolid (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) (list ${mapX(X_ruler - w)} ${mapY(yElev + 1.0)}) (list ${mapX(X_ruler)} ${mapY(yElev + 1.0)}) "KhungBang" 7)\n`;
-              }
-            }
+              // Draw Elevation Ruler (aligned at X_ruler = minOff)
+              const X_ruler = minOff;
+              const w = 0.2;
+              const yRulerMax = maxTerrainY + 2.0;
 
-            // Draw Table Grid Frame below Datum Line (2 rows: CAO DO TU NHIEN, KHOANG CACH LE)
-            const yRow0 = Y_datum;
-            const yRow1 = Y_datum - 6.0;
-            const yRow2 = Y_datum - 12.0;
+              scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(gDatum)}) (list ${mapX(X_ruler - w)} ${mapY(yRulerMax)}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(X_ruler)} ${mapY(gDatum)}) (list ${mapX(X_ruler)} ${mapY(yRulerMax)}) "KhungBang" 7 "BYLAYER")\n`;
 
-            scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow1}) (list ${mapX(maxOff + 2.0)} ${yRow1}) "KhungBang" 7 "BYLAYER")\n`;
-            scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow2}) (list ${mapX(maxOff + 2.0)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
-            scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow0}) (list ${mapX(minOff - 3.5)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
-            scr += `(drawline (list ${mapX(minOff)} ${yRow0}) (list ${mapX(minOff)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
-            scr += `(drawline (list ${mapX(maxOff + 2.0)} ${yRow0}) (list ${mapX(maxOff + 2.0)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
-
-            // Row Title Texts inside the header box
-            scr += `(drawtext (list ${mapX(minOff - 3.2)} ${yRow1 + 2.2}) "${unicodeToTCVN3("CAO ĐỘ TỰ NHIÊN (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-            scr += `(drawtext (list ${mapX(minOff - 3.2)} ${yRow2 + 2.2}) "${unicodeToTCVN3("KHOẢNG CÁCH LẺ (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
-
-            // Draw vertical column dividers inside the table grid (restricted to Row 2, using White color 7) and fill elevation & distance values
-            if (pts && pts.length > 0) {
-              pts.forEach((p, pIdx) => {
-                // Draw vertical divider in Row 2 (Khoảng cách lẻ) only, using white (color 7)
-                scr += `(drawline (list ${mapX(p.offset)} ${yRow1}) (list ${mapX(p.offset)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+              for (let yElev = Math.floor(gDatum); yElev <= Math.ceil(yRulerMax); yElev += 1.0) {
+                if (yElev < gDatum - 0.01) continue;
+                scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) "KhungBang" 7 "BYLAYER")\n`;
+                scr += `(drawline (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler - w - 0.3)} ${mapY(yElev)}) "KhungBang" 7 "BYLAYER")\n`;
                 
-                // Draw elevation text (vertical, rounded to 2 decimals, center-aligned on the divider)
-                scr += `(drawtextcenter (list ${mapX(p.offset)} ${Y_datum - 3.0}) "${p.elevation.toFixed(2)}" 1.5 90 "TextBang" "VnTimeH" 7)\n`;
-
-                // Draw distance text (horizontal, rounded to 2 decimals, center-aligned in the middle of segment)
-                if (pIdx > 0) {
-                  const prevOffset = pts[pIdx - 1].offset;
-                  const dx = p.offset - prevOffset;
-                  const midOffset = (p.offset + prevOffset) / 2;
-                  scr += `(drawtextcenter (list ${mapX(midOffset)} ${Y_datum - 9.0}) "${dx.toFixed(2)}" 1.5 0 "TextBang" "VnTimeH" 7)\n`;
+                if (Math.abs(yElev - gDatum) > 0.01) {
+                  scr += `(drawtext (list ${mapX(X_ruler - w - 1.4)} ${mapY(yElev - 0.2)}) "${yElev.toFixed(2)}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
                 }
-              });
-            }
+
+                if (yElev < Math.ceil(yRulerMax) && (yElev - Math.floor(gDatum)) % 2 === 0) {
+                  scr += `(drawsolid (list ${mapX(X_ruler - w)} ${mapY(yElev)}) (list ${mapX(X_ruler)} ${mapY(yElev)}) (list ${mapX(X_ruler - w)} ${mapY(yElev + 1.0)}) (list ${mapX(X_ruler)} ${mapY(yElev + 1.0)}) "KhungBang" 7)\n`;
+                }
+              }
+
+              // Draw Table Grid Frame below Datum Line (2 rows: CAO DO TU NHIEN, KHOANG CACH LE)
+              const yRow0 = Y_datum;
+              const yRow1 = Y_datum - 6.0;
+              const yRow2 = Y_datum - 12.0;
+
+              scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow1}) (list ${mapX(maxOff + 2.0)} ${yRow1}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow2}) (list ${mapX(maxOff + 2.0)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow0}) (list ${mapX(minOff - 3.5)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(minOff)} ${yRow0}) (list ${mapX(minOff)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(maxOff + 2.0)} ${yRow0}) (list ${mapX(maxOff + 2.0)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+
+              // Row Title Texts inside the header box
+              scr += `(drawtext (list ${mapX(minOff - 3.2)} ${yRow1 + 2.2}) "${unicodeToTCVN3("CAO ĐỘ TỰ NHIÊN (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
+              scr += `(drawtext (list ${mapX(minOff - 3.2)} ${yRow2 + 2.2}) "${unicodeToTCVN3("KHOẢNG CÁCH LẺ (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
+
+              // Draw vertical column dividers inside the table grid (restricted to Row 2, using White color 7) and fill elevation & distance values
+              if (pts && pts.length > 0) {
+                pts.forEach((p, pIdx) => {
+                  // Draw vertical divider in Row 2 (Khoảng cách lẻ) only, using white (color 7)
+                  scr += `(drawline (list ${mapX(p.offset)} ${yRow1}) (list ${mapX(p.offset)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+                  
+                  // Draw elevation text (vertical, rounded to 2 decimals, center-aligned on the divider)
+                  scr += `(drawtextcenter (list ${mapX(p.offset)} ${Y_datum - 3.0}) "${p.elevation.toFixed(2)}" 1.5 90 "TextBang" "VnTimeH" 7)\n`;
+
+                  // Draw distance text (horizontal, rounded to 2 decimals, center-aligned in the middle of segment)
+                  if (pIdx > 0) {
+                    const prevOffset = pts[pIdx - 1].offset;
+                    const dx = p.offset - prevOffset;
+                    const midOffset = (p.offset + prevOffset) / 2;
+                    scr += `(drawtextcenter (list ${mapX(midOffset)} ${Y_datum - 9.0}) "${dx.toFixed(2)}" 1.5 0 "TextBang" "VnTimeH" 7)\n`;
+                  }
+                });
+              }
+            });
           });
 
           scr += `(setvar "CELTYPE" "BYLAYER")\n`;
