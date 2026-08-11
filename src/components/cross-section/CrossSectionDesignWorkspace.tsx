@@ -342,7 +342,7 @@ export default function CrossSectionDesignWorkspace({
           scr += `    )\n`;
           scr += `  )\n`;
           scr += `)\n`;
-          scr += `(createlay "TuNhien" 8 "Continuous")\n`;
+          scr += `(createlay "TuNhien" 8 "Continuous")\n(createlay "TimKenh" 2 "Continuous")\n(createlay "MucNuoc" 5 "Continuous")\n(createlay "MatKenh_BeTong" 3 "Continuous")\n(createlay "BeTongLot" 1 "Continuous")\n(createlay "MaiDap" 2 "Continuous")\n(createlay "MaiDao" 6 "Continuous")\n(createlay "RanhThoatNuoc" 4 "Continuous")\n`;
           scr += `(if (not (tblsearch "STYLE" "VnTimeH"))\n`;
           scr += `  (entmake\n`;
           scr += `    '(\n`;
@@ -592,6 +592,24 @@ export default function CrossSectionDesignWorkspace({
                 return Number((isNaN(val) ? Y_datum : val).toFixed(3));
               };
 
+              const makeLispList = (points: { x: number; y: number }[]) => {
+                let res = `  (list\n`;
+                points.forEach(p => {
+                  res += `    (list ${mapX(p.x)} ${mapY(p.y)})\n`;
+                });
+                res += `  )`;
+                return res;
+              };
+
+              const makeLispListFromPts = (points: { offset: number; elevation: number }[]) => {
+                let res = `  (list\n`;
+                points.forEach(p => {
+                  res += `    (list ${mapX(p.offset)} ${mapY(p.elevation)})\n`;
+                });
+                res += `  )`;
+                return res;
+              };
+
               const minTerrainY = Math.min(...pts.map(p => p.elevation));
               const maxTerrainY = Math.max(...pts.map(p => p.elevation));
 
@@ -702,8 +720,7 @@ export default function CrossSectionDesignWorkspace({
                 const leftPts = pts.filter(p => p.offset < leftCutX);
                 leftPts.push({ offset: leftCutX, elevation: leftCutElev });
                 if (leftPts.length > 1) {
-                  const ptsList = leftPts.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
-                  scr += `(drawpoly (list ${ptsList}) "TuNhien" 1 0 "BYLAYER")\n`;
+                  scr += `(drawpoly\n${makeLispListFromPts(leftPts)}\n  "TuNhien" 1 0 "BYLAYER"\n)\n`;
                 }
 
                 // Middle Segment (Dashed, color 8 / Gray, hidden linetype)
@@ -712,26 +729,89 @@ export default function CrossSectionDesignWorkspace({
                 pts.filter(p => p.offset > leftCutX && p.offset < rightCutX).forEach(p => midPts.push(p));
                 midPts.push({ offset: rightCutX, elevation: rightCutElev });
                 if (midPts.length > 1) {
-                  const ptsList = midPts.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
-                  scr += `(drawpoly (list ${ptsList}) "TuNhien" 8 0 "HIDDEN")\n`;
+                  scr += `(drawpoly\n${makeLispListFromPts(midPts)}\n  "TuNhien" 8 0 "HIDDEN"\n)\n`;
                 }
 
                 // Right Segment (Solid, color 1 / Red)
                 const rightPts = [{ offset: rightCutX, elevation: rightCutElev }];
                 pts.filter(p => p.offset > rightCutX).forEach(p => rightPts.push(p));
                 if (rightPts.length > 1) {
-                  const ptsList = rightPts.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
-                  scr += `(drawpoly (list ${ptsList}) "TuNhien" 1 0 "BYLAYER")\n`;
+                  scr += `(drawpoly\n${makeLispListFromPts(rightPts)}\n  "TuNhien" 1 0 "BYLAYER"\n)\n`;
                 }
               } else {
                 // Entire Terrain Segment (Solid, color 1 / Red)
                 if (pts && pts.length > 0) {
-                  const ptsList = pts.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
-                  scr += `(drawpoly (list ${ptsList}) "TuNhien" 1 0 "BYLAYER")\n`;
+                  scr += `(drawpoly\n${makeLispListFromPts(pts)}\n  "TuNhien" 1 0 "BYLAYER"\n)\n`;
                 }
               }
 
-              // Draw Cross Section Title (3 lines: Cọc name, mileage, and scale)
+              // 1. Tim Kenh Centerline Axis (Yellow/Color 2)
+              scr += `(drawline (list ${mapX(geom.cx)} ${yRow2}) (list ${mapX(geom.cx)} ${mapY(geom.cy + geom.H_total + 2.5)}) "TimKenh" 2 "BYLAYER")\n`;
+
+              // 2. Water Level Line (MNTK - Blue/Color 5)
+              scr += `(drawline (list ${mapX(geom.cx - geom.b/2 - 1.0)} ${mapY(geom.waterLevelAtStake)}) (list ${mapX(geom.cx + geom.b/2 + 1.0)} ${mapY(geom.waterLevelAtStake)}) "MucNuoc" 5 "BYLAYER")\n`;
+              scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.waterLevelAtStake + 0.1)}) "+ MNTK: ${geom.waterLevelAtStake.toFixed(2)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+              scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.cy + geom.H_total + 0.1)}) "+ Z_dinh: ${geom.topLevelAtStake.toFixed(2)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+              scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.cy - 0.2)}) "+ Z_day: ${geom.dayKenhAtStake.toFixed(2)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+
+              // 3. Concrete Canal Box (Green/Color 3)
+              const concBoxPts = [
+                geom.outerLeftTop, geom.p0, geom.p1_top, geom.p1_right,
+                geom.p2_left, geom.p2_top, geom.p3, geom.outerRightTop,
+                geom.outerRightBottom, geom.concRightTop, geom.concRightBottom,
+                geom.concLeftBottom, geom.concLeftTop, geom.outerLeftBottom
+              ];
+              if (concBoxPts.filter(Boolean).length > 2) {
+                scr += `(drawpoly\n${makeLispList(concBoxPts.filter(Boolean))}\n  "MatKenh_BeTong" 3 1 "BYLAYER"\n)\n`;
+              }
+
+              // 4. Lean Concrete Layer (Red/Color 1)
+              const dlotPts = [
+                geom.dlotLeftTop, geom.dlotRightTop, geom.dlotRightBottom, geom.dlotLeftBottom
+              ];
+              if (dlotPts.filter(Boolean).length > 2) {
+                scr += `(drawpoly\n${makeLispList(dlotPts.filter(Boolean))}\n  "BeTongLot" 1 1 "BYLAYER"\n)\n`;
+              }
+
+              // 5. Embankment Slopes & Bank Tops (Yellow/Color 2)
+              if (geom.point5) {
+                const ptsList = [geom.point5, geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].filter(Boolean);
+                scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+              } else {
+                const ptsList = [geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].filter(Boolean);
+                scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+              }
+
+              if (geom.point6) {
+                const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight, geom.point6].filter(Boolean);
+                scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+              } else {
+                const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight].filter(Boolean);
+                scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+              }
+
+              // 6. Excavation Slopes (Magenta/Color 6)
+              if (geom.isALowerThanTerrain && geom.intersectA) {
+                scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.intersectA.x)} ${mapY(geom.intersectA.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              }
+              if (geom.isBLowerThanTerrain && geom.intersectB) {
+                scr += `(drawline (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) (list ${mapX(geom.intersectB.x)} ${mapY(geom.intersectB.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              }
+              if (geom.isLeftCut && geom.cutLeftFinal) {
+                scr += `(drawline (list ${mapX(geom.ditchTopLeft.x)} ${mapY(geom.ditchTopLeft.y)}) (list ${mapX(geom.cutLeftFinal.x)} ${mapY(geom.cutLeftFinal.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              }
+              if (geom.isRightCut && geom.fillRight) {
+                scr += `(drawline (list ${mapX(geom.ditchTopRightRight.x)} ${mapY(geom.ditchTopRightRight.y)}) (list ${mapX(geom.fillRight.x)} ${mapY(geom.fillRight.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              }
+
+              // 7. Drainage Ditches (Cyan/Color 4)
+              if (geom.hasDitchLeft && geom.ditchPolysLeft) {
+                scr += `(drawpoly\n${makeLispList(geom.ditchPolysLeft)}\n  "RanhThoatNuoc" 4 1 "BYLAYER"\n)\n`;
+              }
+              if (geom.hasDitchRight && geom.ditchPolysRight) {
+                scr += `(drawpoly\n${makeLispList(geom.ditchPolysRight)}\n  "RanhThoatNuoc" 4 1 "BYLAYER"\n)\n`;
+              }
+
               const formatChainage = (ch: number) => {
                 const km = Math.floor(ch / 1000);
                 const m = (ch % 1000).toFixed(2);
@@ -742,6 +822,16 @@ export default function CrossSectionDesignWorkspace({
               const Y_title_2 = Y_top_of_profile + 8.5;
               const Y_title_1 = Y_top_of_profile + 13.5;
 
+              // 8. Quantity Legend Card (aligned to the right side of the sheet, paper space Y)
+              const X_card = colIdx * 385.0 + 385.0 - 80.0;
+              const Y_card = Y_top_of_profile + 15.0;
+              scr += `(drawpoly\n  (list (list ${X_card} ${Y_card}) (list ${X_card + 75.0} ${Y_card}) (list ${X_card + 75.0} ${Y_card - 20.0}) (list ${X_card} ${Y_card - 20.0}))\n  "KhungBang" 8 1 "BYLAYER"\n)\n`;
+              scr += `(drawtext (list ${X_card + 3.0} ${Y_card - 4.0}) "${unicodeToTCVN3(`S đào đất: ${geom.S_dao_trang.toFixed(2)} m2`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+              scr += `(drawtext (list ${X_card + 3.0} ${Y_card - 9.0}) "${unicodeToTCVN3(`S đắp đất: ${geom.S_dap.toFixed(2)} m2`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+              scr += `(drawtext (list ${X_card + 3.0} ${Y_card - 14.0}) "${unicodeToTCVN3(`S bóc hữu cơ: ${geom.S_boc_thao_moc.toFixed(2)} m2`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+              scr += `(drawtext (list ${X_card + 3.0} ${Y_card - 19.0}) "${unicodeToTCVN3(`L trồng cỏ: ${geom.L_trong_co.toFixed(2)} m`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+
+              // Draw Cross Section Title (3 lines: Cọc name, mileage, and scale)
               // Line 1: CỌC: [Name] (color 4/Cyan, height 3.0, style VNArialH)
               scr += `(drawtextcenter (list ${colIdx * 385.0 + 192.5} ${Y_title_1}) "${unicodeToTCVN3(`CỌC: ${stake.name.toUpperCase()}`)}" 3.0 0 "TextTitle" "VNArialH" 4)\n`;
               
