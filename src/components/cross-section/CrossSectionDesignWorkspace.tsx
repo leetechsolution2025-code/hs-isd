@@ -302,6 +302,7 @@ export default function CrossSectionDesignWorkspace({
           scr += `(command)\n`;
           scr += `(setvar "FILEDIA" 0)\n`;
           scr += `(setvar "OSMODE" 0)\n`;
+          scr += `(setvar "LTSCALE" 5)\n`;
           scr += `;; AUTOCAD SCRIPT TO DRAW DRAWING BORDERS, DATUM LINES AND RULER\n`;
           scr += `;;========================================================================\n`;
           scr += `(defun createlay (lay col ltp)\n`;
@@ -322,6 +323,26 @@ export default function CrossSectionDesignWorkspace({
           scr += `(createlay "KhungBao" 1 "Continuous")\n`;
           scr += `(createlay "KhungBang" 7 "Continuous")\n`;
           scr += `(createlay "TextBang" 7 "Continuous")\n`;
+          scr += `(if (not (tblsearch "LTYPE" "HIDDEN"))\n`;
+          scr += `  (entmake\n`;
+          scr += `    '(\n`;
+          scr += `      (0 . "LTYPE")\n`;
+          scr += `      (100 . "AcDbSymbolTableRecord")\n`;
+          scr += `      (100 . "AcDbLinetypeTableRecord")\n`;
+          scr += `      (2 . "HIDDEN")\n`;
+          scr += `      (70 . 0)\n`;
+          scr += `      (3 . "Hidden")\n`;
+          scr += `      (72 . 65)\n`;
+          scr += `      (73 . 2)\n`;
+          scr += `      (40 . 0.375)\n`;
+          scr += `      (49 . 0.25)\n`;
+          scr += `      (74 . 0)\n`;
+          scr += `      (49 . -0.125)\n`;
+          scr += `      (74 . 0)\n`;
+          scr += `    )\n`;
+          scr += `  )\n`;
+          scr += `)\n`;
+          scr += `(createlay "TuNhien" 8 "Continuous")\n`;
           scr += `(if (not (tblsearch "STYLE" "VnTimeH"))\n`;
           scr += `  (entmake\n`;
           scr += `    '(\n`;
@@ -340,13 +361,37 @@ export default function CrossSectionDesignWorkspace({
           scr += `    )\n`;
           scr += `  )\n`;
           scr += `)\n`;
+          scr += `(if (not (tblsearch "STYLE" "VNArialH"))\n`;
+          scr += `  (entmake\n`;
+          scr += `    '(\n`;
+          scr += `      (0 . "STYLE")\n`;
+          scr += `      (100 . "AcDbSymbolTableRecord")\n`;
+          scr += `      (100 . "AcDbTextStyleTableRecord")\n`;
+          scr += `      (2 . "VNArialH")\n`;
+          scr += `      (70 . 0)\n`;
+          scr += `      (40 . 0.0)\n`;
+          scr += `      (41 . 1.0)\n`;
+          scr += `      (50 . 0.0)\n`;
+          scr += `      (71 . 0)\n`;
+          scr += `      (42 . 3.0)\n`;
+          scr += `      (3 . ".VnArialH")\n`;
+          scr += `      (4 . "")\n`;
+          scr += `    )\n`;
+          scr += `  )\n`;
+          scr += `)\n`;
+          scr += `(createlay "TextTitle" 4 "Continuous")\n`;
           scr += `(defun to3d (p)\n`;
           scr += `  (list (car p) (cadr p) (if (caddr p) (caddr p) 0.0))\n`;
           scr += `)\n`;
           scr += `(defun drawpoly (pts lay col cls ltp)\n`;
           scr += `  (setvar "CLAYER" lay)\n`;
           scr += `  (setvar "CECOLOR" (itoa col))\n`;
-          scr += `  (setvar "CELTYPE" "Continuous")\n`;
+          scr += `  (setvar "CELTYPE"\n`;
+          scr += `    (if (or (= (strcase ltp) "BYLAYER") (= (strcase ltp) "BYBLOCK") (tblsearch "LTYPE" ltp))\n`;
+          scr += `      (strcase ltp)\n`;
+          scr += `      "BYLAYER"\n`;
+          scr += `    )\n`;
+          scr += `  )\n`;
           scr += `  (command "_.PLINE")\n`;
           scr += `  (foreach pt pts (command pt))\n`;
           scr += `  (if (= cls 1) (command "c") (command ""))\n`;
@@ -507,6 +552,15 @@ export default function CrossSectionDesignWorkspace({
               const idxInSheet = stakeItem.idxInSheet;
               const { H_profile, H_total, gDatum } = stakeItem.heights;
 
+              const geom = calculateCrossSectionGeometry(
+                stake,
+                computedSegments,
+                segmentHydraulicResults,
+                flowNodes,
+                nodeElevations,
+                crossSectionParams
+              );
+
               let Y_datum = 0;
               if (hasSecond) {
                 if (idxInSheet === 0) {
@@ -524,7 +578,7 @@ export default function CrossSectionDesignWorkspace({
 
               const scaleFactor = 1000 / horizontalScale;
               const leftBound = minOff - 3.5;
-              const rightBound = maxOff + 2.0;
+              const rightBound = maxOff;
               const centerM = (leftBound + rightBound) / 2;
               const X0 = colIdx * 385.0 + 192.5 - centerM * scaleFactor;
 
@@ -542,7 +596,7 @@ export default function CrossSectionDesignWorkspace({
               const maxTerrainY = Math.max(...pts.map(p => p.elevation));
 
               // Draw Datum Line (White/Color 7)
-              scr += `(drawline (list ${mapX(minOff - 3.5)} ${Y_datum}) (list ${mapX(maxOff + 2.0)} ${Y_datum}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(minOff - 3.5)} ${Y_datum}) (list ${mapX(maxOff)} ${Y_datum}) "KhungBang" 7 "BYLAYER")\n`;
 
               // Draw Datum Label ("MỨC SO SÁNH: [gDatum]")
               scr += `(drawtext (list ${mapX(minOff - 3.2)} ${Y_datum + 0.5}) "${unicodeToTCVN3(`MỨC SO SÁNH: ${gDatum.toFixed(2)}`)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
@@ -574,21 +628,26 @@ export default function CrossSectionDesignWorkspace({
               const yRow1 = Y_datum - 6.0;
               const yRow2 = Y_datum - 12.0;
 
-              scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow1}) (list ${mapX(maxOff + 2.0)} ${yRow1}) "KhungBang" 7 "BYLAYER")\n`;
-              scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow2}) (list ${mapX(maxOff + 2.0)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow1}) (list ${mapX(maxOff)} ${yRow1}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow2}) (list ${mapX(maxOff)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
               scr += `(drawline (list ${mapX(minOff - 3.5)} ${yRow0}) (list ${mapX(minOff - 3.5)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
               scr += `(drawline (list ${mapX(minOff)} ${yRow0}) (list ${mapX(minOff)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
-              scr += `(drawline (list ${mapX(maxOff + 2.0)} ${yRow0}) (list ${mapX(maxOff + 2.0)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawline (list ${mapX(maxOff)} ${yRow0}) (list ${mapX(maxOff)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
 
               // Row Title Texts inside the header box
               scr += `(drawtext (list ${mapX(minOff - 3.2)} ${yRow1 + 2.2}) "${unicodeToTCVN3("CAO ĐỘ TỰ NHIÊN (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
               scr += `(drawtext (list ${mapX(minOff - 3.2)} ${yRow2 + 2.2}) "${unicodeToTCVN3("KHOẢNG CÁCH LẺ (M)")}" 1.6 0 "TextBang" "VnTimeH" 7)\n`;
 
-              // Draw vertical column dividers inside the table grid (restricted to Row 2, using White color 7) and fill elevation & distance values
+              // Draw vertical column dividers inside the table grid and fill elevation & distance values
               if (pts && pts.length > 0) {
                 pts.forEach((p, pIdx) => {
-                  // Draw vertical divider in Row 2 (Khoảng cách lẻ) only, using white (color 7)
-                  scr += `(drawline (list ${mapX(p.offset)} ${yRow1}) (list ${mapX(p.offset)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+                  // Draw vertical projection line from terrain point to datum line (using color 8)
+                  scr += `(drawline (list ${mapX(p.offset)} ${mapY(p.elevation)}) (list ${mapX(p.offset)} ${Y_datum}) "KhungBang" 8 "BYLAYER")\n`;
+
+                  // Draw vertical divider in Row 2 (Khoảng cách lẻ) only (skip if last point), using white (color 7)
+                  if (p.offset < maxOff - 0.01) {
+                    scr += `(drawline (list ${mapX(p.offset)} ${yRow1}) (list ${mapX(p.offset)} ${yRow2}) "KhungBang" 7 "BYLAYER")\n`;
+                  }
                   
                   // Draw elevation text (vertical, rounded to 2 decimals, center-aligned on the divider)
                   scr += `(drawtextcenter (list ${mapX(p.offset)} ${Y_datum - 3.0}) "${p.elevation.toFixed(2)}" 1.5 90 "TextBang" "VnTimeH" 7)\n`;
@@ -602,6 +661,95 @@ export default function CrossSectionDesignWorkspace({
                   }
                 });
               }
+
+              // Draw split Terrain Line (solid left/right in red, dashed hidden in middle)
+              const getTerrainElev = (x: number) => {
+                if (!pts || pts.length === 0) return 0;
+                if (x <= pts[0].offset) return pts[0].elevation;
+                if (x >= pts[pts.length - 1].offset) return pts[pts.length - 1].elevation;
+                for (let i = 0; i < pts.length - 1; i++) {
+                  const p1 = pts[i];
+                  const p2 = pts[i + 1];
+                  if (x >= p1.offset && x <= p2.offset) {
+                    const t = (x - p1.offset) / (p2.offset - p1.offset);
+                    return p1.elevation + t * (p2.elevation - p1.elevation);
+                  }
+                }
+                return pts[0].elevation;
+              };
+
+               const hasLeftSolidTerrainFill = Boolean(
+                 geom.point5 && geom.point5_terrain && Math.abs(geom.point5.x - geom.point5_terrain.x) < 0.01 && (!geom.intersectA || geom.point5.x < geom.intersectA.x)
+               );
+
+               const hasRightSolidTerrainFill = Boolean(
+                 geom.point6 && geom.point6_terrain && Math.abs(geom.point6.x - geom.point6_terrain.x) < 0.01 && (!geom.intersectB || geom.point6.x > geom.intersectB.x)
+               );
+
+               const leftCutX = (hasLeftSolidTerrainFill && geom.point5_terrain)
+                 ? geom.point5_terrain.x
+                 : (geom.intersectA ? geom.intersectA.x : (geom.point5 ? geom.point5.x : null));
+
+               const rightCutX = (hasRightSolidTerrainFill && geom.point6_terrain)
+                 ? geom.point6_terrain.x
+                 : (geom.intersectB ? geom.intersectB.x : (geom.point6 ? geom.point6.x : null));
+
+              if (leftCutX !== null && rightCutX !== null && leftCutX < rightCutX) {
+                const leftCutElev = getTerrainElev(leftCutX);
+                const rightCutElev = getTerrainElev(rightCutX);
+
+                // Left Segment (Solid, color 1 / Red)
+                const leftPts = pts.filter(p => p.offset < leftCutX);
+                leftPts.push({ offset: leftCutX, elevation: leftCutElev });
+                if (leftPts.length > 1) {
+                  const ptsList = leftPts.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
+                  scr += `(drawpoly (list ${ptsList}) "TuNhien" 1 0 "BYLAYER")\n`;
+                }
+
+                // Middle Segment (Dashed, color 8 / Gray, hidden linetype)
+                const midPts = [];
+                midPts.push({ offset: leftCutX, elevation: leftCutElev });
+                pts.filter(p => p.offset > leftCutX && p.offset < rightCutX).forEach(p => midPts.push(p));
+                midPts.push({ offset: rightCutX, elevation: rightCutElev });
+                if (midPts.length > 1) {
+                  const ptsList = midPts.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
+                  scr += `(drawpoly (list ${ptsList}) "TuNhien" 8 0 "HIDDEN")\n`;
+                }
+
+                // Right Segment (Solid, color 1 / Red)
+                const rightPts = [{ offset: rightCutX, elevation: rightCutElev }];
+                pts.filter(p => p.offset > rightCutX).forEach(p => rightPts.push(p));
+                if (rightPts.length > 1) {
+                  const ptsList = rightPts.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
+                  scr += `(drawpoly (list ${ptsList}) "TuNhien" 1 0 "BYLAYER")\n`;
+                }
+              } else {
+                // Entire Terrain Segment (Solid, color 1 / Red)
+                if (pts && pts.length > 0) {
+                  const ptsList = pts.map(p => `(list ${mapX(p.offset)} ${mapY(p.elevation)})`).join(' ');
+                  scr += `(drawpoly (list ${ptsList}) "TuNhien" 1 0 "BYLAYER")\n`;
+                }
+              }
+
+              // Draw Cross Section Title (3 lines: Cọc name, mileage, and scale)
+              const formatChainage = (ch: number) => {
+                const km = Math.floor(ch / 1000);
+                const m = (ch % 1000).toFixed(2);
+                return `K${km}+${m}`;
+              };
+              const Y_top_of_profile = Y_datum + (yRulerMax - gDatum) * (1000 / verticalScale);
+              const Y_title_3 = Y_top_of_profile + 4.0;
+              const Y_title_2 = Y_top_of_profile + 8.5;
+              const Y_title_1 = Y_top_of_profile + 13.5;
+
+              // Line 1: CỌC: [Name] (color 4/Cyan, height 3.0, style VNArialH)
+              scr += `(drawtextcenter (list ${colIdx * 385.0 + 192.5} ${Y_title_1}) "${unicodeToTCVN3(`CỌC: ${stake.name.toUpperCase()}`)}" 3.0 0 "TextTitle" "VNArialH" 4)\n`;
+              
+              // Line 2: Mileage (color 7/White, height 1.5, style VnTimeH)
+              scr += `(drawtextcenter (list ${colIdx * 385.0 + 192.5} ${Y_title_2}) "${formatChainage(stake.chainage)}" 1.5 0 "TextBang" "VnTimeH" 7)\n`;
+              
+              // Line 3: Scale (color 7/White, height 1.5, style VnTimeH)
+              scr += `(drawtextcenter (list ${colIdx * 385.0 + 192.5} ${Y_title_3}) "${unicodeToTCVN3(`TỈ LỆ 1:${verticalScale}`)}" 1.5 0 "TextBang" "VnTimeH" 7)\n`;
             });
           });
 
