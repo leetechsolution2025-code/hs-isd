@@ -37,6 +37,9 @@ export default function ParametricModule({
     MDAO2: 1.0,
     MDAP: 1.75,
 
+    bankCutOption: 'dap_bo', // 'dap_bo' hoặc 'mo_rong_bo'
+    coRanhThoatNuocMai: false,
+
     coRanhThoatNuoc: false,
     DTN: 0.4,
     BTN: 0.4,
@@ -376,6 +379,22 @@ export default function ParametricModule({
                 <span className="text-slate-500">Mái đắp bờ kênh</span>
                 <input type="number" step="0.1" value={params.MDAP} onChange={e => handleParamChange('MDAP', e.target.value)} className="w-full border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500" />
               </label>
+              <label className="text-[12px] text-slate-700 flex flex-col gap-1 col-span-2">
+                <span className="text-slate-500">Mái dốc bên Đào</span>
+                <select value={params.bankCutOption || 'dap_bo'} onChange={e => handleParamChange('bankCutOption', e.target.value, false)} className="w-full border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500 bg-white">
+                  <option value="dap_bo">Đắp bờ dốc xuống (mặc định)</option>
+                  <option value="mo_rong_bo">Mở rộng thềm bờ nằm ngang</option>
+                </select>
+              </label>
+              {params.bankCutOption === 'mo_rong_bo' && (
+                <label className="flex items-center gap-3 cursor-pointer mt-1 col-span-2">
+                  <div className="relative inline-flex items-center">
+                    <input type="checkbox" className="sr-only peer" checked={params.coRanhThoatNuocMai || false} onChange={e => handleParamChange('coRanhThoatNuocMai', e.target.checked, false)} />
+                    <div className="w-7 h-3.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1.5px] after:left-[1.5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </div>
+                  <span className="text-[12px] font-medium text-slate-700">Có rãnh thoát nước mái (rãnh biên)</span>
+                </label>
+              )}
             </div>
           </div>
 

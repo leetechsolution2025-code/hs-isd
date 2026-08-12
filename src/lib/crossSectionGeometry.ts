@@ -163,6 +163,7 @@ export function calculateCrossSectionGeometry(
   const defaultParams = {
     B1: 0.2, B2: 0.25, B3: 0.4, VAT: 0.1, DDAY: 0.2, DLOT: 0.1, DBO: 0.3,
     BT_trai: 1.5, BT_phai: 1.5, MDAO1: 1.5, MDAO2: 1.0, MDAP: 1.75,
+    bankCutOption: 'dap_bo', coRanhThoatNuocMai: false,
     coRanhThoatNuoc: false, DTN: 0.4, BTN: 0.4, HTN: 0.4, coTrongCo: false,
     coNgamMong: false, coBocThaoMoc: true, dayBocThaoMoc: 0.2
   };
@@ -373,6 +374,15 @@ export function calculateCrossSectionGeometry(
     intersectB = findIntersection(pointB, pMDAO1, 1);
   }
 
+  // Trench tops
+  const x_trench_left_top = dlotLeftBottom.x - (bankElevLeft - dlotLeftBottom.y) * pMDAO1;
+  const test_bank_x_l = Math.min(bankOuterLeft.x, x_trench_left_top);
+  const isLeftCut = (getTerrainElev(test_bank_x_l) > bankElevLeft);
+
+  const x_trench_right_top = dlotRightBottom.x + (bankElevRight - dlotRightBottom.y) * pMDAO1;
+  const test_bank_x_r = Math.max(bankOuterRight.x, x_trench_right_top);
+  const isRightCut = (getTerrainElev(test_bank_x_r) > bankElevRight);
+
   // CORRECTED EMBANKMENT SLOPE VECTOR DIRECTION:
   // Left embankment: moving LEFT (vx = -pMDAP) and DOWNWARDS (vy = -1)
   // Right embankment: moving RIGHT (vx = pMDAP) and DOWNWARDS (vy = -1)
@@ -383,21 +393,61 @@ export function calculateCrossSectionGeometry(
   const rightCutDepth = Math.max(0, getTerrainElev(dlotRightBottom.x) - dlotRightBottom.y);
   const isFullFill = (!isALowerThanTerrain && !isBLowerThanTerrain) || (leftCutDepth < 1.50 && rightCutDepth < 1.50);
 
-  let point5: Point2D | null = point5_terrain;
-  if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
-    const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
-    const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
-    if (x5 > intersectA.x && y5 >= pointA.y && y5 <= bankOuterLeft.y) {
-      point5 = { x: x5, y: y5 };
+  let point5: Point2D | null = null;
+  if (isLeftCut) {
+    if (params.bankCutOption === 'mo_rong_bo') {
+      if (isALowerThanTerrain && pMDAO1 > 0) {
+        const x5 = pointA.x - pMDAO1 * (bankElevLeft - pointA.y);
+        point5 = { x: x5, y: bankElevLeft };
+      }
+    } else {
+      // 'dap_bo'
+      if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
+        const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
+        const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
+        if (x5 > intersectA.x && y5 >= pointA.y && y5 <= bankOuterLeft.y) {
+          point5 = { x: x5, y: y5 };
+        }
+      }
+    }
+  } else {
+    // Fill section
+    point5 = point5_terrain;
+    if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
+      const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
+      const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
+      if (x5 > intersectA.x && y5 >= pointA.y && y5 <= bankOuterLeft.y) {
+        point5 = { x: x5, y: y5 };
+      }
     }
   }
 
-  let point6: Point2D | null = point6_terrain;
-  if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
-    const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
-    const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
-    if (x6 < intersectB.x && y6 >= pointB.y && y6 <= bankOuterRight.y) {
-      point6 = { x: x6, y: y6 };
+  let point6: Point2D | null = null;
+  if (isRightCut) {
+    if (params.bankCutOption === 'mo_rong_bo') {
+      if (isBLowerThanTerrain && pMDAO1 > 0) {
+        const x6 = pointB.x + pMDAO1 * (bankElevRight - pointB.y);
+        point6 = { x: x6, y: bankElevRight };
+      }
+    } else {
+      // 'dap_bo'
+      if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
+        const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
+        const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
+        if (x6 < intersectB.x && y6 >= pointB.y && y6 <= bankOuterRight.y) {
+          point6 = { x: x6, y: y6 };
+        }
+      }
+    }
+  } else {
+    // Fill section
+    point6 = point6_terrain;
+    if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
+      const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
+      const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
+      if (x6 < intersectB.x && y6 >= pointB.y && y6 <= bankOuterRight.y) {
+        point6 = { x: x6, y: y6 };
+      }
     }
   }
 
@@ -412,10 +462,7 @@ export function calculateCrossSectionGeometry(
     trenchTopRight = findIntersection(dlotRightBottom, pMDAO1, 1);
   }
 
-  const x_trench_left_top = dlotLeftBottom.x - (bankElevLeft - dlotLeftBottom.y) * pMDAO1;
-  let isLeftCut = (getTerrainElev(bankOuterLeft.x) > bankElevLeft);
   let hasDitchLeft = false;
-
   if (isLeftCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
     const hDitch = Number(params.HTN) || 0.4;
     const tDitch = Number(params.DTN) || 0.4;
@@ -430,10 +477,7 @@ export function calculateCrossSectionGeometry(
     }
   }
 
-  const x_trench_right_top = dlotRightBottom.x + (bankElevRight - dlotRightBottom.y) * pMDAO1;
-  let isRightCut = (getTerrainElev(bankOuterRight.x) > bankElevRight);
   let hasDitchRight = false;
-
   if (isRightCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
     const hDitch = Number(params.HTN) || 0.4;
     const tDitch = Number(params.DTN) || 0.4;
@@ -450,46 +494,82 @@ export function calculateCrossSectionGeometry(
 
   let ditchTopLeft = bankOuterLeft;
   let ditchPolysLeft: Point2D[] = [];
-  if (hasDitchLeft) {
+  if (hasDitchLeft || (isLeftCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai && point5)) {
     const bDitch = Number(params.BTN) || 0.4;
     const hDitch = Number(params.HTN) || 0.4;
     const tDitch = Number(params.DTN) || 0.4;
 
-    const ditchTopRight = { x: bankOuterLeft.x, y: bankOuterLeft.y };
-    ditchTopLeft = { x: ditchTopRight.x - (bDitch + 2 * tDitch), y: ditchTopRight.y };
-    const ditchOuterBotRight = { x: ditchTopRight.x, y: ditchTopRight.y - hDitch - tDitch };
-    const ditchOuterBotLeft = { x: ditchTopLeft.x, y: ditchTopLeft.y - hDitch - tDitch };
-    const ditchInnerTopRight = { x: ditchTopRight.x - tDitch, y: ditchTopRight.y };
-    const ditchInnerTopLeft = { x: ditchTopLeft.x + tDitch, y: ditchTopLeft.y };
-    const ditchInnerBotRight = { x: ditchInnerTopRight.x, y: ditchInnerTopRight.y - hDitch };
-    const ditchInnerBotLeft = { x: ditchInnerTopLeft.x, y: ditchInnerTopLeft.y - hDitch };
+    if (isLeftCut && params.bankCutOption === 'mo_rong_bo' && point5) {
+      const ditchTopL = { x: point5.x, y: point5.y };
+      const ditchTopR = { x: point5.x + (bDitch + 2 * tDitch), y: point5.y };
+      ditchTopLeft = ditchTopL;
+      
+      const ditchOuterBotR = { x: ditchTopR.x, y: ditchTopR.y - hDitch - tDitch };
+      const ditchOuterBotL = { x: ditchTopL.x, y: ditchTopL.y - hDitch - tDitch };
+      const ditchInnerTopR = { x: ditchTopR.x - tDitch, y: ditchTopR.y };
+      const ditchInnerTopL = { x: ditchTopL.x + tDitch, y: ditchTopL.y };
+      const ditchInnerBotR = { x: ditchInnerTopR.x, y: ditchInnerTopR.y - hDitch };
+      const ditchInnerBotL = { x: ditchInnerTopL.x, y: ditchInnerTopL.y - hDitch };
 
-    ditchPolysLeft = [
-      ditchTopRight, ditchOuterBotRight, ditchOuterBotLeft, ditchTopLeft,
-      ditchInnerTopLeft, ditchInnerBotLeft, ditchInnerBotRight, ditchInnerTopRight
-    ];
+      ditchPolysLeft = [
+        ditchTopR, ditchOuterBotR, ditchOuterBotL, ditchTopL,
+        ditchInnerTopL, ditchInnerBotL, ditchInnerBotR, ditchInnerTopR
+      ];
+    } else {
+      const ditchTopRight = { x: bankOuterLeft.x, y: bankOuterLeft.y };
+      ditchTopLeft = { x: ditchTopRight.x - (bDitch + 2 * tDitch), y: ditchTopRight.y };
+      const ditchOuterBotRight = { x: ditchTopRight.x, y: ditchTopRight.y - hDitch - tDitch };
+      const ditchOuterBotLeft = { x: ditchTopLeft.x, y: ditchTopLeft.y - hDitch - tDitch };
+      const ditchInnerTopRight = { x: ditchTopRight.x - tDitch, y: ditchTopRight.y };
+      const ditchInnerTopLeft = { x: ditchTopLeft.x + tDitch, y: ditchTopLeft.y };
+      const ditchInnerBotRight = { x: ditchInnerTopRight.x, y: ditchInnerTopRight.y - hDitch };
+      const ditchInnerBotLeft = { x: ditchInnerTopLeft.x, y: ditchInnerTopLeft.y - hDitch };
+
+      ditchPolysLeft = [
+        ditchTopRight, ditchOuterBotRight, ditchOuterBotLeft, ditchTopLeft,
+        ditchInnerTopLeft, ditchInnerBotLeft, ditchInnerBotRight, ditchInnerTopRight
+      ];
+    }
   }
 
   let ditchTopRightRight = bankOuterRight;
   let ditchPolysRight: Point2D[] = [];
-  if (hasDitchRight) {
+  if (hasDitchRight || (isRightCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai && point6)) {
     const bDitch = Number(params.BTN) || 0.4;
     const hDitch = Number(params.HTN) || 0.4;
     const tDitch = Number(params.DTN) || 0.4;
 
-    const ditchTopLeftRight = { x: bankOuterRight.x, y: bankOuterRight.y };
-    ditchTopRightRight = { x: ditchTopLeftRight.x + (bDitch + 2 * tDitch), y: ditchTopLeftRight.y };
-    const ditchOuterBotRightR = { x: ditchTopRightRight.x, y: ditchTopRightRight.y - hDitch - tDitch };
-    const ditchOuterBotLeftR = { x: ditchTopLeftRight.x, y: ditchTopLeftRight.y - hDitch - tDitch };
-    const ditchInnerTopRightR = { x: ditchTopRightRight.x - tDitch, y: ditchTopRightRight.y };
-    const ditchInnerTopLeftR = { x: ditchTopLeftRight.x + tDitch, y: ditchTopLeftRight.y };
-    const ditchInnerBotRightR = { x: ditchInnerTopRightR.x, y: ditchInnerTopRightR.y - hDitch };
-    const ditchInnerBotLeftR = { x: ditchInnerTopLeftR.x, y: ditchInnerTopLeftR.y - hDitch };
+    if (isRightCut && params.bankCutOption === 'mo_rong_bo' && point6) {
+      const ditchTopR = { x: point6.x, y: point6.y };
+      const ditchTopL = { x: point6.x - (bDitch + 2 * tDitch), y: point6.y };
+      ditchTopRightRight = ditchTopR;
+      
+      const ditchOuterBotR = { x: ditchTopR.x, y: ditchTopR.y - hDitch - tDitch };
+      const ditchOuterBotL = { x: ditchTopL.x, y: ditchTopL.y - hDitch - tDitch };
+      const ditchInnerTopR = { x: ditchTopR.x - tDitch, y: ditchTopR.y };
+      const ditchInnerTopL = { x: ditchTopL.x + tDitch, y: ditchTopL.y };
+      const ditchInnerBotR = { x: ditchInnerTopR.x, y: ditchInnerTopR.y - hDitch };
+      const ditchInnerBotL = { x: ditchInnerTopL.x, y: ditchInnerTopL.y - hDitch };
 
-    ditchPolysRight = [
-      ditchTopRightRight, ditchOuterBotRightR, ditchOuterBotLeftR, ditchTopLeftRight,
-      ditchInnerTopLeftR, ditchInnerBotLeftR, ditchInnerBotRightR, ditchInnerTopRightR
-    ];
+      ditchPolysRight = [
+        ditchTopR, ditchOuterBotR, ditchOuterBotL, ditchTopL,
+        ditchInnerTopL, ditchInnerBotL, ditchInnerBotR, ditchInnerTopR
+      ];
+    } else {
+      const ditchTopLeftRight = { x: bankOuterRight.x, y: bankOuterRight.y };
+      ditchTopRightRight = { x: ditchTopLeftRight.x + (bDitch + 2 * tDitch), y: ditchTopLeftRight.y };
+      const ditchOuterBotRightR = { x: ditchTopRightRight.x, y: ditchTopRightRight.y - hDitch - tDitch };
+      const ditchOuterBotLeftR = { x: ditchTopLeftRight.x, y: ditchTopLeftRight.y - hDitch - tDitch };
+      const ditchInnerTopRightR = { x: ditchTopRightRight.x - tDitch, y: ditchTopRightRight.y };
+      const ditchInnerTopLeftR = { x: ditchTopLeftRight.x + tDitch, y: ditchTopLeftRight.y };
+      const ditchInnerBotRightR = { x: ditchInnerTopRightR.x, y: ditchInnerTopRightR.y - hDitch };
+      const ditchInnerBotLeftR = { x: ditchInnerTopLeftR.x, y: ditchInnerTopLeftR.y - hDitch };
+
+      ditchPolysRight = [
+        ditchTopRightRight, ditchOuterBotRightR, ditchOuterBotLeftR, ditchTopLeftRight,
+        ditchInnerTopLeftR, ditchInnerBotLeftR, ditchInnerBotRightR, ditchInnerTopRightR
+      ];
+    }
   }
 
   let cutLeftFinal: Point2D | null = null;
@@ -605,7 +685,10 @@ export function calculateCrossSectionGeometry(
   const fullStrippedPoly: Point2D[] = [];
   const leftStrippedPoly: Point2D[] = [];
   const rightStrippedPoly: Point2D[] = [];
-  if (isFullFill && point5 && point6 && point7 && point8) {
+
+  const useFullFill = !!(isFullFill && point5 && point6 && point7 && point8);
+
+  if (useFullFill && point5 && point6 && point7 && point8) {
     fullStrippedPoly.push(point5);
     fullStrippedPoly.push(point7);
     (stake.points || [])
@@ -652,7 +735,7 @@ export function calculateCrossSectionGeometry(
         .forEach(p => rightStrippedPoly.push({ x: p.offset, y: p.elevation }));
     }
   }
-  const S_boc_thao_moc = isFullFill
+  const S_boc_thao_moc = useFullFill
     ? calculatePolygonArea(fullStrippedPoly)
     : calculatePolygonArea(leftStrippedPoly) + calculatePolygonArea(rightStrippedPoly);
 
@@ -660,7 +743,7 @@ export function calculateCrossSectionGeometry(
   const fullEmbankmentPoly: Point2D[] = [];
   const leftEmbankmentPoly: Point2D[] = [];
   const rightEmbankmentPoly: Point2D[] = [];
-  if (isFullFill && point5 && point6 && point7 && point8) {
+  if (useFullFill && point5 && point6 && point7 && point8) {
     fullEmbankmentPoly.push(bankInnerLeft);
     fullEmbankmentPoly.push(bankOuterLeft);
     fullEmbankmentPoly.push(point5);
@@ -684,6 +767,15 @@ export function calculateCrossSectionGeometry(
     if (point5) {
       leftEmbankmentPoly.push(bankInnerLeft);
       leftEmbankmentPoly.push(bankOuterLeft);
+      if (isLeftCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai) {
+        const bDitch = Number(params.BTN) || 0.4;
+        const tDitch = Number(params.DTN) || 0.4;
+        const bDitch_total = bDitch + 2 * tDitch;
+        leftEmbankmentPoly.push({ x: point5.x + bDitch_total, y: point5.y });
+        const hDitch = Number(params.HTN) || 0.4;
+        leftEmbankmentPoly.push({ x: point5.x + bDitch_total, y: point5.y - hDitch - tDitch });
+        leftEmbankmentPoly.push({ x: point5.x, y: point5.y - hDitch - tDitch });
+      }
       leftEmbankmentPoly.push(point5);
       if (point7) leftEmbankmentPoly.push(point7);
       if (point9) leftEmbankmentPoly.push(point9);
@@ -696,6 +788,15 @@ export function calculateCrossSectionGeometry(
     if (point6) {
       rightEmbankmentPoly.push(bankInnerRight);
       rightEmbankmentPoly.push(bankOuterRight);
+      if (isRightCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai) {
+        const bDitch = Number(params.BTN) || 0.4;
+        const tDitch = Number(params.DTN) || 0.4;
+        const bDitch_total = bDitch + 2 * tDitch;
+        rightEmbankmentPoly.push({ x: point6.x - bDitch_total, y: point6.y });
+        const hDitch = Number(params.HTN) || 0.4;
+        rightEmbankmentPoly.push({ x: point6.x - bDitch_total, y: point6.y - hDitch - tDitch });
+        rightEmbankmentPoly.push({ x: point6.x, y: point6.y - hDitch - tDitch });
+      }
       rightEmbankmentPoly.push(point6);
       if (point8) rightEmbankmentPoly.push(point8);
       if (point10) rightEmbankmentPoly.push(point10);
@@ -706,13 +807,17 @@ export function calculateCrossSectionGeometry(
       rightEmbankmentPoly.push(outerRightBottom);
     }
   }
-  const S_dap = isFullFill
+  const S_dap = useFullFill
     ? calculatePolygonArea(fullEmbankmentPoly)
     : calculatePolygonArea(leftEmbankmentPoly) + calculatePolygonArea(rightEmbankmentPoly);
 
-  const L_35 = point5 ? Math.sqrt(Math.pow(point5.x - bankOuterLeft.x, 2) + Math.pow(point5.y - bankOuterLeft.y, 2)) : 0;
-  const L_46 = point6 ? Math.sqrt(Math.pow(point6.x - bankOuterRight.x, 2) + Math.pow(point6.y - bankOuterRight.y, 2)) : 0;
-  const L_trong_co = L_35 + L_46;
+  const L_35 = (point5 && !(isLeftCut && params.bankCutOption === 'mo_rong_bo'))
+    ? Math.sqrt(Math.pow(point5.x - bankOuterLeft.x, 2) + Math.pow(point5.y - bankOuterLeft.y, 2))
+    : 0;
+  const L_46 = (point6 && !(isRightCut && params.bankCutOption === 'mo_rong_bo'))
+    ? Math.sqrt(Math.pow(point6.x - bankOuterRight.x, 2) + Math.pow(point6.y - bankOuterRight.y, 2))
+    : 0;
+  const L_trong_co = params.coTrongCo ? L_35 + L_46 : 0;
 
   return {
     dayKenhAtStake,
@@ -736,7 +841,7 @@ export function calculateCrossSectionGeometry(
     intersectA, intersectB,
     point5_terrain, point6_terrain,
     point5, point6,
-    isALowerThanTerrain, isBLowerThanTerrain, isFullFill,
+    isALowerThanTerrain, isBLowerThanTerrain, isFullFill: useFullFill,
     hasDitchLeft, hasDitchRight,
     ditchPolysLeft, ditchPolysRight,
     ditchTopLeft, ditchTopRightRight,

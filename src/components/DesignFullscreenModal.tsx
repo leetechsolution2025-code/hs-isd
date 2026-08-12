@@ -24,6 +24,7 @@ import { generateProfileDXF } from '@/lib/exportDXF';
 import { generateProfileLISP } from '@/lib/exportLISP';
 import CrossSectionDesignWorkspace, { CrossSectionStake } from './cross-section/CrossSectionDesignWorkspace';
 import { calculateCrossSectionGeometry } from '@/lib/crossSectionGeometry';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface DesignFullscreenModalProps {
   isOpen: boolean;
@@ -60,6 +61,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const [isCrossSectionPanelExpanded, setIsCrossSectionPanelExpanded] = useState(false);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [showLandmarkList, setShowLandmarkList] = useState(false);
+  const [confirmDeleteTableOpen, setConfirmDeleteTableOpen] = useState(false);
+  const [tableToDelete, setTableToDelete] = useState<HTMLTableElement | null>(null);
 
   useEffect(() => {
     if (activeDocTab === 'thuyet_minh' && !companyInfo) {
@@ -1222,6 +1225,123 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
     }
   }, [focusedChainage]);
 
+  const getSelectedTableCell = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    let node = selection.getRangeAt(0).startContainer;
+    while (node && node !== document.body) {
+      if (node.nodeName === 'TD' || node.nodeName === 'TH') {
+        return node as HTMLTableCellElement;
+      }
+      node = node.parentNode as Node;
+    }
+    return null;
+  };
+
+  const handleInsertRow = () => {
+    const cell = getSelectedTableCell();
+    if (!cell) {
+      alert("Vui lòng đặt con trỏ chuột vào một ô trong bảng để thêm dòng.");
+      return;
+    }
+    const row = cell.parentElement as HTMLTableRowElement;
+    const newRow = row.cloneNode(true) as HTMLTableRowElement;
+    Array.from(newRow.cells).forEach(c => {
+      c.innerHTML = 'Dữ liệu mới';
+    });
+    row.parentNode?.insertBefore(newRow, row.nextSibling);
+  };
+
+  const handleDeleteRow = () => {
+    const cell = getSelectedTableCell();
+    if (!cell) {
+      alert("Vui lòng đặt con trỏ chuột vào dòng muốn xóa.");
+      return;
+    }
+    const row = cell.parentElement as HTMLTableRowElement;
+    const table = row.parentElement as HTMLTableSectionElement || row.parentElement as HTMLTableElement;
+    if (table.rows.length <= 1) {
+      const tableEl = row.closest('table');
+      tableEl?.remove();
+    } else {
+      row.remove();
+    }
+  };
+
+  const handleInsertColumn = () => {
+    const cell = getSelectedTableCell();
+    if (!cell) {
+      alert("Vui lòng đặt con trỏ chuột vào một ô trong bảng để thêm cột.");
+      return;
+    }
+    const cellIndex = cell.cellIndex;
+    const table = cell.closest('table');
+    if (!table) return;
+    
+    Array.from(table.rows).forEach((row) => {
+      const isHeader = row.parentElement?.nodeName === 'THEAD' || row.cells[cellIndex]?.nodeName === 'TH';
+      const newCell = document.createElement(isHeader ? 'th' : 'td');
+      newCell.innerHTML = isHeader ? 'Tiêu đề' : 'Dữ liệu';
+      const currentCell = row.cells[cellIndex];
+      if (currentCell) {
+        newCell.setAttribute('style', currentCell.getAttribute('style') || '');
+        row.insertBefore(newCell, currentCell.nextSibling);
+      } else {
+        row.appendChild(newCell);
+      }
+    });
+  };
+
+  const handleDeleteColumn = () => {
+    const cell = getSelectedTableCell();
+    if (!cell) {
+      alert("Vui lòng đặt con trỏ chuột vào cột muốn xóa.");
+      return;
+    }
+    const cellIndex = cell.cellIndex;
+    const table = cell.closest('table');
+    if (!table) return;
+    
+    const firstRow = table.rows[0];
+    if (firstRow && firstRow.cells.length <= 1) {
+      table.remove();
+      return;
+    }
+
+    Array.from(table.rows).forEach((row) => {
+      if (row.cells[cellIndex]) {
+        row.cells[cellIndex].remove();
+      }
+    });
+  };
+
+  const handleDeleteTable = () => {
+    const cell = getSelectedTableCell();
+    if (!cell) {
+      alert("Vui lòng đặt con trỏ chuột vào bảng muốn xóa.");
+      return;
+    }
+    const table = cell.closest('table');
+    if (table) {
+      setTableToDelete(table);
+      setConfirmDeleteTableOpen(true);
+    }
+  };
+
+  const confirmDeleteTable = () => {
+    if (tableToDelete) {
+      tableToDelete.remove();
+      setTableToDelete(null);
+      toast.success("Đã xóa bảng thành công");
+    }
+    setConfirmDeleteTableOpen(false);
+  };
+
+  const cancelDeleteTable = () => {
+    setTableToDelete(null);
+    setConfirmDeleteTableOpen(false);
+  };
+
   const execEditorCommand = (command: string, value: string = '') => {
     document.execCommand(command, false, value);
   };
@@ -1281,83 +1401,83 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
       return;
     }
 
-    let html = `
+    // Build print window base HTML
+    printWindow.document.write(`
       <html>
         <head>
           <title>In Ho So Thiet Ke</title>
           <style>
             @page {
               size: A4;
-              margin: 0;
+              margin-top: 20mm;
+              margin-right: 20mm;
+              margin-bottom: 20mm;
+              margin-left: 25mm;
             }
             body {
-              margin: 0;
-              padding: 0;
-              background: white;
-              font-family: 'Times New Roman', Times, serif;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            .print-page {
-              box-sizing: border-box;
-              width: 210mm;
-              min-height: 297mm;
-              padding-top: 20mm;
-              padding-right: 20mm;
-              padding-bottom: 20mm;
-              padding-left: 25mm;
-              font-size: 14pt;
-              line-height: 1.6;
-              background: white;
-              page-break-after: always;
-              word-wrap: break-word;
+            /* Custom overrides for A4 pages in print mode */
+            .print-page-layout {
+              border: none !important;
+              box-shadow: none !important;
+              outline: none !important;
+              background: white !important;
+              padding: 0 !important; /* Clear screen padding to prevent double margins */
+              margin: 0 !important;
+              width: 100% !important;
+              min-height: 257mm !important; /* Height of A4 (297mm) minus top/bottom margins (20mm + 20mm) */
+              height: auto !important;
+              page-break-after: always !important;
+              page-break-inside: auto !important;
+              box-sizing: border-box !important;
+            }
+            /* Table print styling */
+            tr {
+              page-break-inside: avoid !important;
             }
             table {
-              width: 100%;
-              border-collapse: collapse;
-              font-family: 'Times New Roman', Times, serif;
-              font-size: 10pt;
-              margin: 15px 0;
+              page-break-inside: auto !important;
             }
-            th, td {
-              border: 1px solid black;
-              padding: 6px;
+            thead {
+              display: table-header-group !important;
             }
-            .text-center { text-align: center; }
-            .text-left { text-align: left; }
-            .text-right { text-align: right; }
-            .font-bold { font-weight: bold; }
-            .font-semibold { font-weight: 600; }
-            .italic { font-style: italic; }
-            .my-4 { margin-top: 1rem; margin-bottom: 1rem; }
-            .flex { display: flex; }
-            .items-center { align-items: center; }
-            .justify-center { justify-content: center; }
-            .flex-col { flex-direction: column; }
-            .border-b { border-bottom: 1px solid black; }
-            .pb-1 { padding-bottom: 0.25rem; }
-            .pt-1 { padding-top: 0.25rem; }
-            .px-4 { padding-left: 1rem; padding-right: 1rem; }
-            .mr-3 { margin-right: 0.75rem; }
           </style>
         </head>
         <body>
-    `;
-
-    editorPages.forEach((page) => {
-      html += '<div class="print-page">' + page.innerHTML + '</div>';
-    });
-
-    html += `
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            }
-          </script>
         </body>
       </html>
-    `;
+    `);
 
-    printWindow.document.write(html);
+    // Copy all style/stylesheet link nodes from main document
+    const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
+    styles.forEach((style) => {
+      printWindow.document.head.appendChild(style.cloneNode(true));
+    });
+
+    // Copy each page outerHTML with formatting overrides
+    editorPages.forEach((page) => {
+      const clone = page.cloneNode(true) as HTMLElement;
+      clone.removeAttribute('contenteditable');
+      clone.classList.add('print-page-layout');
+      printWindow.document.body.appendChild(clone);
+    });
+
+    // Trigger print after resources and Tailwind reflow
+    const script = printWindow.document.createElement('script');
+    script.innerHTML = `
+      window.onload = function() {
+        setTimeout(() => {
+          window.print();
+          window.close();
+        }, 800);
+      };
+    `;
+    printWindow.document.body.appendChild(script);
     printWindow.document.close();
   };
 
@@ -3218,6 +3338,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           onClick={() => execEditorCommand('insertUnorderedList')}
                           onMouseDown={(e) => e.preventDefault()}
                           className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                          title="Danh sách dấu tròn"
                         >
                           <i className="bi bi-list-ul"></i>
                         </button>
@@ -3225,6 +3346,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           onClick={() => execEditorCommand('insertOrderedList')}
                           onMouseDown={(e) => e.preventDefault()}
                           className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                          title="Danh sách số"
                         >
                           <i className="bi bi-list-ol"></i>
                         </button>
@@ -3232,6 +3354,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           onClick={handleInsertTable}
                           onMouseDown={(e) => e.preventDefault()}
                           className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                          title="Chèn Bảng"
                         >
                           <i className="bi bi-table"></i>
                         </button>
@@ -3239,8 +3362,52 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           onClick={handleInsertImage}
                           onMouseDown={(e) => e.preventDefault()}
                           className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                          title="Chèn Ảnh"
                         >
                           <i className="bi bi-image"></i>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+                        <button 
+                          onClick={handleInsertRow}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="px-2 h-8 flex items-center gap-1 hover:bg-slate-100 rounded text-slate-600 text-xs font-semibold"
+                          title="Thêm hàng phía dưới cọc hiện tại"
+                        >
+                          <i className="bi bi-file-earmark-plus"></i> + Dòng
+                        </button>
+                        <button 
+                          onClick={handleDeleteRow}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="px-2 h-8 flex items-center gap-1 hover:bg-slate-100 rounded text-red-600 text-xs font-semibold"
+                          title="Xóa hàng hiện tại"
+                        >
+                          <i className="bi bi-file-earmark-minus"></i> - Dòng
+                        </button>
+                        <button 
+                          onClick={handleInsertColumn}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="px-2 h-8 flex items-center gap-1 hover:bg-slate-100 rounded text-slate-600 text-xs font-semibold"
+                          title="Thêm cột bên phải"
+                        >
+                          <i className="bi bi-file-plus"></i> + Cột
+                        </button>
+                        <button 
+                          onClick={handleDeleteColumn}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="px-2 h-8 flex items-center gap-1 hover:bg-slate-100 rounded text-red-600 text-xs font-semibold"
+                          title="Xóa cột hiện tại"
+                        >
+                          <i className="bi bi-file-minus"></i> - Cột
+                        </button>
+                        <button 
+                          onClick={handleDeleteTable}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="px-2 h-8 flex items-center gap-1 hover:bg-red-50 hover:text-red-700 rounded text-red-500 text-xs font-semibold animate-pulse"
+                          title="Xóa toàn bộ bảng"
+                        >
+                          <i className="bi bi-trash"></i> Xóa Bảng
                         </button>
                       </div>
                     </div>
@@ -4837,6 +5004,17 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
           initialData={importedPoints}
           onUpdate={setRawImportedPoints}
           onDelete={() => setRawImportedPoints([])}
+        />
+
+        <ConfirmDialog
+          open={confirmDeleteTableOpen}
+          title="Xác nhận xóa bảng"
+          message="Bạn có chắc chắn muốn xóa toàn bộ bảng này khỏi báo cáo không? Thao tác này không thể hoàn tác."
+          confirmLabel="Xóa bảng"
+          cancelLabel="Hủy"
+          variant="danger"
+          onConfirm={confirmDeleteTable}
+          onCancel={cancelDeleteTable}
         />
       </div>
     </div>
