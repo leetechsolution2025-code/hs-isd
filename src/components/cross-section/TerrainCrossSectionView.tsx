@@ -383,11 +383,7 @@ export default function TerrainCrossSectionView({
     const point5_terrain = findIntersection(bankOuterLeft, -pMDAP, -1);
     const point6_terrain = findIntersection(bankOuterRight, pMDAP, -1);
 
-    const leftCutDepth = Math.max(0, getTerrainElev(dlotLeftBottom.x) - dlotLeftBottom.y);
-    const rightCutDepth = Math.max(0, getTerrainElev(dlotRightBottom.x) - dlotRightBottom.y);
-    const maxCutDepth = Math.max(leftCutDepth, rightCutDepth);
-
-    const isFullFill = (!isALowerThanTerrain && !isBLowerThanTerrain) || (leftCutDepth < 1.50 && rightCutDepth < 1.50);
+    const isFullFill = !isALowerThanTerrain && !isBLowerThanTerrain;
     
     let point5: { x: number; y: number } | null = null;
     if (isLeftCut) {

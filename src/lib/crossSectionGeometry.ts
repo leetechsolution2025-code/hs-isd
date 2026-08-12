@@ -389,9 +389,7 @@ export function calculateCrossSectionGeometry(
   const point5_terrain = findIntersection(bankOuterLeft, -pMDAP, -1);
   const point6_terrain = findIntersection(bankOuterRight, pMDAP, -1);
 
-  const leftCutDepth = Math.max(0, getTerrainElev(dlotLeftBottom.x) - dlotLeftBottom.y);
-  const rightCutDepth = Math.max(0, getTerrainElev(dlotRightBottom.x) - dlotRightBottom.y);
-  const isFullFill = (!isALowerThanTerrain && !isBLowerThanTerrain) || (leftCutDepth < 1.50 && rightCutDepth < 1.50);
+  const isFullFill = !isALowerThanTerrain && !isBLowerThanTerrain;
 
   let point5: Point2D | null = null;
   if (isLeftCut) {
