@@ -92,18 +92,18 @@ export function generateProfileLISP(data: any[], settings: any, landmarkData: { 
 
   // Helper for Entmake LINE
   const lspLine = (x1: number, y1: number, x2: number, y2: number, layer: string, color: number = 256) => 
-    `(entmake (list '(0 . "LINE") '(8 . "${layer}") (cons 62 ${color}) (cons 10 (list ${x1} ${y1} 0)) (cons 11 (list ${x2} ${y2} 0))))\n`;
+    `(entmake\n  (list\n    '(0 . "LINE")\n    '(8 . "${layer}")\n    (cons 62 ${color})\n    (cons 10 (list ${x1} ${y1} 0))\n    (cons 11 (list ${x2} ${y2} 0))\n  )\n)\n`;
 
   // Helper for Entmake TEXT
   const lspText = (txt: string, x: number, y: number, rot: number, layer: string, color: number, alignType: "left" | "center" | "right" = "left") => {
     const encTxt = unicodeToTCVN3(txt);
     const rad = (rot * Math.PI) / 180;
     if (alignType === "center") {
-      return `(entmake (list '(0 . "TEXT") '(8 . "${layer}") '(7 . "VnTimeH") (cons 62 ${color}) '(72 . 1) '(73 . 2) (cons 10 (list ${x} ${y} 0)) (cons 11 (list ${x} ${y} 0)) (cons 40 1.5) (cons 1 "${encTxt}") (cons 50 ${rad})))\n`;
+      return `(entmake\n  (list\n    '(0 . "TEXT")\n    '(8 . "${layer}")\n    '(7 . "VnTimeH")\n    (cons 62 ${color})\n    '(72 . 1)\n    '(73 . 2)\n    (cons 10 (list ${x} ${y} 0))\n    (cons 11 (list ${x} ${y} 0))\n    (cons 40 1.5)\n    (cons 1 "${encTxt}")\n    (cons 50 ${rad})\n  )\n)\n`;
     } else if (alignType === "right") {
-      return `(entmake (list '(0 . "TEXT") '(8 . "${layer}") '(7 . "VnTimeH") (cons 62 ${color}) '(72 . 2) '(73 . 2) (cons 10 (list ${x} ${y} 0)) (cons 11 (list ${x} ${y} 0)) (cons 40 1.5) (cons 1 "${encTxt}") (cons 50 ${rad})))\n`;
+      return `(entmake\n  (list\n    '(0 . "TEXT")\n    '(8 . "${layer}")\n    '(7 . "VnTimeH")\n    (cons 62 ${color})\n    '(72 . 2)\n    '(73 . 2)\n    (cons 10 (list ${x} ${y} 0))\n    (cons 11 (list ${x} ${y} 0))\n    (cons 40 1.5)\n    (cons 1 "${encTxt}")\n    (cons 50 ${rad})\n  )\n)\n`;
     } else {
-      return `(entmake (list '(0 . "TEXT") '(8 . "${layer}") '(7 . "VnTimeH") (cons 62 ${color}) (cons 10 (list ${x} ${y} 0)) (cons 40 1.5) (cons 1 "${encTxt}") (cons 50 ${rad})))\n`;
+      return `(entmake\n  (list\n    '(0 . "TEXT")\n    '(8 . "${layer}")\n    '(7 . "VnTimeH")\n    (cons 62 ${color})\n    (cons 10 (list ${x} ${y} 0))\n    (cons 40 1.5)\n    (cons 1 "${encTxt}")\n    (cons 50 ${rad})\n  )\n)\n`;
     }
   };
 

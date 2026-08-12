@@ -109,6 +109,14 @@ export default function TerrainCrossSectionView({
   const localParams = (stake && stakeParams)?.[stake.name] || {};
   const params = { ...defaultParams, ...segParam, ...localParams };
 
+  const coRanhTrai = params.coRanhTrai !== undefined
+    ? !!params.coRanhTrai
+    : (params.coRanhThoatNuocMai !== undefined ? !!params.coRanhThoatNuocMai : false);
+
+  const coRanhPhai = params.coRanhPhai !== undefined
+    ? !!params.coRanhPhai
+    : (params.coRanhThoatNuocMai !== undefined ? !!params.coRanhThoatNuocMai : false);
+
   const _bOut = parseFloat(selectedHydraulics.b_out);
   const _b = parseFloat(selectedHydraulics.b);
   const b = !isNaN(_bOut) ? _bOut : (!isNaN(_b) ? _b : 1.0);
@@ -672,7 +680,7 @@ export default function TerrainCrossSectionView({
       if (point5) {
         leftEmbankmentPoly.push(bankInnerLeft);   // Điểm 1
         leftEmbankmentPoly.push(bankOuterLeft);   // Điểm 3
-        if (isLeftCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai) {
+        if (isLeftCut && params.bankCutOption === 'mo_rong_bo' && coRanhTrai) {
           const bDitch = Number(params.BTN) || 0.4;
           const tDitch = Number(params.DTN) || 0.4;
           const bDitch_total = bDitch + 2 * tDitch;
@@ -693,7 +701,7 @@ export default function TerrainCrossSectionView({
       if (point6) {
         rightEmbankmentPoly.push(bankInnerRight);  // Điểm 2
         rightEmbankmentPoly.push(bankOuterRight);  // Điểm 4
-        if (isRightCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai) {
+        if (isRightCut && params.bankCutOption === 'mo_rong_bo' && coRanhPhai) {
           const bDitch = Number(params.BTN) || 0.4;
           const tDitch = Number(params.DTN) || 0.4;
           const bDitch_total = bDitch + 2 * tDitch;
@@ -776,7 +784,7 @@ export default function TerrainCrossSectionView({
 
     let hasDitchLeft = false;
 
-    if (isLeftCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
+    if (isLeftCut && pMDAO1 > 0 && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuoc) {
       const hDitch = Number(params.HTN) || 0;
       const tDitch = Number(params.DTN) || 0;
       const bDitch = Number(params.BTN) || 0;
@@ -794,7 +802,7 @@ export default function TerrainCrossSectionView({
 
     let hasDitchRight = false;
 
-    if (isRightCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
+    if (isRightCut && pMDAO1 > 0 && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuoc) {
       const hDitch = Number(params.HTN) || 0;
       const tDitch = Number(params.DTN) || 0;
       const bDitch = Number(params.BTN) || 0;
@@ -810,7 +818,7 @@ export default function TerrainCrossSectionView({
 
     let ditchTopLeft = bankOuterLeft;
     let ditchPolys: string = "";
-    if (hasDitchLeft || (isLeftCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai && point5)) {
+    if (coRanhTrai && (hasDitchLeft || (isLeftCut && params.bankCutOption === 'mo_rong_bo' && coRanhTrai && point5))) {
       const bDitch = Number(params.BTN) || 0;
       const hDitch = Number(params.HTN) || 0;
       const tDitch = Number(params.DTN) || 0;
@@ -844,7 +852,7 @@ export default function TerrainCrossSectionView({
 
     let ditchTopRightRight = bankOuterRight;
     let ditchPolysRight: string = "";
-    if (hasDitchRight || (isRightCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai && point6)) {
+    if (coRanhPhai && (hasDitchRight || (isRightCut && params.bankCutOption === 'mo_rong_bo' && coRanhPhai && point6))) {
       const bDitch = Number(params.BTN) || 0;
       const hDitch = Number(params.HTN) || 0;
       const tDitch = Number(params.DTN) || 0;

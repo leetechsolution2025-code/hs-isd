@@ -1,4 +1,5 @@
 export function unicodeToTCVN3(str: string): string {
+  const normalizedStr = str.normalize('NFC').toLowerCase();
   const map: Record<string, number> = {
     'À': 181, 'Á': 184, 'Ả': 182, 'Ã': 183, 'Ạ': 185,
     'Ă': 162, 'Ằ': 187, 'Ắ': 190, 'Ẳ': 188, 'Ẵ': 189, 'Ặ': 198,
@@ -31,8 +32,8 @@ export function unicodeToTCVN3(str: string): string {
   };
 
   let result = '';
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
+  for (let i = 0; i < normalizedStr.length; i++) {
+    const char = normalizedStr[i];
     if (map[char] !== undefined) {
       // Use AutoCAD's %%nnn escape code for arbitrary bytes
       // Pad with leading zeros to ensure it's 3 digits

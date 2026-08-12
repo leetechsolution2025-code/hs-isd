@@ -115,6 +115,11 @@ export interface CrossSectionGeometryResult {
   S_dap: number;
   L_trong_co: number;
   strippedLines?: Point2D[][];
+  coRanhTrai?: boolean;
+  coRanhPhai?: boolean;
+  fullEmbankmentPoly?: Point2D[];
+  leftEmbankmentPoly?: Point2D[];
+  rightEmbankmentPoly?: Point2D[];
 }
 
 export function calculateCrossSectionGeometry(
@@ -189,6 +194,8 @@ export function calculateCrossSectionGeometry(
   const coKenhNgam = !!params.coKenhNgam;
   const coTamNap = coKenhNgam || !!params.coTamNap;
   const chieuDayTamNap = Number(params.chieuDayTamNap) || 0.1;
+  const coRanhTrai = params.coRanhTrai !== undefined ? !!params.coRanhTrai : !!params.coRanhThoatNuocMai;
+  const coRanhPhai = params.coRanhPhai !== undefined ? !!params.coRanhPhai : !!params.coRanhThoatNuocMai;
 
   const _bOut = parseFloat(selectedHydraulics.b_out);
   const _b = parseFloat(selectedHydraulics.b);
@@ -492,7 +499,7 @@ export function calculateCrossSectionGeometry(
   }
 
   let hasDitchLeft = false;
-  if (isLeftCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
+  if (isLeftCut && pMDAO1 > 0 && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuoc) {
     const hDitch = Number(params.HTN) || 0.4;
     const tDitch = Number(params.DTN) || 0.4;
     const bDitch = Number(params.BTN) || 0.4;
@@ -507,7 +514,7 @@ export function calculateCrossSectionGeometry(
   }
 
   let hasDitchRight = false;
-  if (isRightCut && pMDAO1 > 0 && params.coRanhThoatNuoc) {
+  if (isRightCut && pMDAO1 > 0 && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuoc) {
     const hDitch = Number(params.HTN) || 0.4;
     const tDitch = Number(params.DTN) || 0.4;
     const bDitch = Number(params.BTN) || 0.4;
@@ -523,7 +530,7 @@ export function calculateCrossSectionGeometry(
 
   let ditchTopLeft = bankOuterLeft;
   let ditchPolysLeft: Point2D[] = [];
-  if (hasDitchLeft || (isLeftCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai && point5)) {
+  if (coRanhTrai && (hasDitchLeft || (isLeftCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai && point5))) {
     const bDitch = Number(params.BTN) || 0.4;
     const hDitch = Number(params.HTN) || 0.4;
     const tDitch = Number(params.DTN) || 0.4;
@@ -563,7 +570,7 @@ export function calculateCrossSectionGeometry(
 
   let ditchTopRightRight = bankOuterRight;
   let ditchPolysRight: Point2D[] = [];
-  if (hasDitchRight || (isRightCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai && point6)) {
+  if (coRanhPhai && (hasDitchRight || (isRightCut && params.bankCutOption === 'mo_rong_bo' && params.coRanhThoatNuocMai && point6))) {
     const bDitch = Number(params.BTN) || 0.4;
     const hDitch = Number(params.HTN) || 0.4;
     const tDitch = Number(params.DTN) || 0.4;
@@ -952,6 +959,11 @@ export function calculateCrossSectionGeometry(
     S_boc_thao_moc,
     S_dap,
     L_trong_co,
-    strippedLines
+    strippedLines,
+    coRanhTrai,
+    coRanhPhai,
+    fullEmbankmentPoly,
+    leftEmbankmentPoly,
+    rightEmbankmentPoly
   };
 }

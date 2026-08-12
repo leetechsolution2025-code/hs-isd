@@ -3,7 +3,8 @@
 import React, { useState, useRef } from 'react';
 import ParametricModule from './ParametricModule';
 import TerrainCrossSectionView from './TerrainCrossSectionView';
-import { Upload, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, Download, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import TerrainDataOffcanvas from '../TerrainDataOffcanvas';
 import ExportSettingsOffcanvas, { ExportSettings } from '../ExportSettingsOffcanvas';
 import { unicodeToTCVN3 } from '@/lib/tcvn3';
 import { calculateCrossSectionGeometry } from '@/lib/crossSectionGeometry';
@@ -85,6 +86,7 @@ export default function CrossSectionDesignWorkspace({
   const [showCanal, setShowCanal] = useState<boolean>(true);
   const [showPoints, setShowPoints] = useState<boolean>(true);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [isTerrainOffcanvasOpen, setIsTerrainOffcanvasOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Find which segment the selected stake belongs to
@@ -137,6 +139,60 @@ export default function CrossSectionDesignWorkspace({
   const coRanhThoatNuoc = localStakeParams.coRanhThoatNuoc !== undefined
     ? localStakeParams.coRanhThoatNuoc
     : (crossSectionParams[selectedSegmentIdx]?.coRanhThoatNuoc || false);
+  const coRanhTrai = localStakeParams.coRanhTrai !== undefined
+    ? !!localStakeParams.coRanhTrai
+    : (localStakeParams.coRanhThoatNuocMai !== undefined ? !!localStakeParams.coRanhThoatNuocMai : (crossSectionParams[selectedSegmentIdx]?.coRanhThoatNuocMai || false));
+  const coRanhPhai = localStakeParams.coRanhPhai !== undefined
+    ? !!localStakeParams.coRanhPhai
+    : (localStakeParams.coRanhThoatNuocMai !== undefined ? !!localStakeParams.coRanhThoatNuocMai : (crossSectionParams[selectedSegmentIdx]?.coRanhThoatNuocMai || false));
+
+  const terrainDataOfSelectedStake = selectedStake ? (selectedStake.points || []).map((p) => ({
+    khoangCach: p.offset,
+    caoDo: p.elevation
+  })) : [];
+
+  const handleUpdateTerrainData = async (
+    newTerrainData: any[],
+    extra?: {
+      name: string;
+      chainage: number;
+      datum: number;
+      centerOffset: number;
+      centerElevation: number;
+    }
+  ) => {
+    if (!terrainStakes || !terrainStakes[selectedStakeIdx]) return;
+    const updatedStakes = [...terrainStakes];
+    const sortedPoints = newTerrainData
+      .map(item => ({
+        offset: Number(item.khoangCach) || 0,
+        elevation: Number(item.caoDo) || 0
+      }))
+      .sort((a, b) => a.offset - b.offset);
+
+    updatedStakes[selectedStakeIdx] = {
+      ...updatedStakes[selectedStakeIdx],
+      points: sortedPoints,
+      ...(extra || {})
+    };
+    setTerrainStakes(updatedStakes);
+    setIsTerrainOffcanvasOpen(false);
+
+    if (project?.id) {
+      try {
+        const { saveCrossSectionData } = await import('@/app/actions');
+        const res = await saveCrossSectionData(project.id, updatedStakes);
+        const toast = (await import('react-hot-toast')).default;
+        if (res.success) {
+          toast.success('Đã cập nhật dữ liệu địa hình mặt cắt thành công');
+        } else {
+          toast.error('Lỗi khi lưu dữ liệu: ' + res.error);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
 
   // Call geometry helper for the selected stake to know isLeftCut/isRightCut
   let isLeftCut = false;
@@ -315,6 +371,13 @@ export default function CrossSectionDesignWorkspace({
                         >
                           <ChevronRight size={16} />
                         </button>
+                        <button 
+                          onClick={() => setIsTerrainOffcanvasOpen(true)}
+                          className="p-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-100 bg-slate-50 transition-colors"
+                          title="Xem/Sửa dữ liệu địa hình mặt cắt"
+                        >
+                          <MoreHorizontal size={16} />
+                        </button>
                       </div>
                     </div>
                   )}
@@ -383,38 +446,42 @@ export default function CrossSectionDesignWorkspace({
                     </select>
                   </div>
 
-                  <div className="flex items-center justify-between py-1">
-                    <span className={`text-xs font-medium ${!hasCutSide ? 'text-slate-400' : 'text-slate-700'}`}>
-                      Có rãnh thoát nước dọc
-                    </span>
-                    <label className={`relative inline-flex items-center ${!hasCutSide ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                      <input
-                        type="checkbox"
-                        disabled={!hasCutSide}
-                        className="sr-only peer"
-                        checked={coRanhThoatNuoc}
-                        onChange={(e) => handleParamChange('coRanhThoatNuoc', e.target.checked)}
-                      />
-                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
+
 
                   {bankCutOption === 'mo_rong_bo' && (
-                    <div className="flex items-center justify-between py-1">
-                      <span className={`text-xs font-medium ${!hasCutSide ? 'text-slate-400' : 'text-slate-700'}`}>
-                        Có rãnh thoát nước mái (rãnh biên)
-                      </span>
-                      <label className={`relative inline-flex items-center ${!hasCutSide ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          disabled={!hasCutSide}
-                          className="sr-only peer"
-                          checked={coRanhThoatNuocMai}
-                          onChange={(e) => handleParamChange('coRanhThoatNuocMai', e.target.checked)}
-                        />
-                        <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
+                    <>
+                      <div className="flex items-center justify-between py-1">
+                        <span className={`text-xs font-medium ${!isLeftCut ? 'text-slate-400' : 'text-slate-700'}`}>
+                          Có rãnh thoát nước bên trái
+                        </span>
+                        <label className={`relative inline-flex items-center ${!isLeftCut ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                          <input
+                            type="checkbox"
+                            disabled={!isLeftCut}
+                            className="sr-only peer"
+                            checked={coRanhTrai}
+                            onChange={(e) => handleParamChange('coRanhTrai', e.target.checked)}
+                          />
+                          <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between py-1">
+                        <span className={`text-xs font-medium ${!isRightCut ? 'text-slate-400' : 'text-slate-700'}`}>
+                          Có rãnh thoát nước bên phải
+                        </span>
+                        <label className={`relative inline-flex items-center ${!isRightCut ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                          <input
+                            type="checkbox"
+                            disabled={!isRightCut}
+                            className="sr-only peer"
+                            checked={coRanhPhai}
+                            onChange={(e) => handleParamChange('coRanhPhai', e.target.checked)}
+                          />
+                          <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+                    </>
                   )}
 
                   {!hasCutSide && (
@@ -488,7 +555,7 @@ export default function CrossSectionDesignWorkspace({
           scr += `(command)\n`;
           scr += `(setvar "FILEDIA" 0)\n`;
           scr += `(setvar "OSMODE" 0)\n`;
-          scr += `(setvar "LTSCALE" 5)\n`;
+          scr += `(setvar "LTSCALE" 3)\n`;
           scr += `;; AUTOCAD SCRIPT TO DRAW DRAWING BORDERS, DATUM LINES AND RULER\n`;
           scr += `;;========================================================================\n`;
           scr += `(defun createlay (lay col ltp)\n`;
@@ -528,7 +595,7 @@ export default function CrossSectionDesignWorkspace({
           scr += `    )\n`;
           scr += `  )\n`;
           scr += `)\n`;
-          scr += `(createlay "TuNhien" 8 "Continuous")\n(createlay "TimKenh" 2 "Continuous")\n(createlay "MucNuoc" 5 "Continuous")\n(createlay "MatKenh_BeTong" 3 "Continuous")\n(createlay "BeTongLot" 1 "Continuous")\n(createlay "MaiDap" 2 "Continuous")\n(createlay "MaiDao" 6 "Continuous")\n(createlay "RanhThoatNuoc" 4 "Continuous")\n`;
+          scr += `(createlay "TuNhien" 8 "Continuous")\n(createlay "TimKenh" 2 "Continuous")\n(createlay "MucNuoc" 5 "Continuous")\n(createlay "MatKenh_BeTong" 1 "Continuous")\n(createlay "BeTongLot" 1 "Continuous")\n(createlay "MaiDap" 1 "Continuous")\n(createlay "MaiDao" 1 "Continuous")\n(createlay "RanhThoatNuoc" 4 "Continuous")\n(createlay "BocThaoMoc" 1 "Continuous")\n`;
           scr += `(if (not (tblsearch "STYLE" "VnTimeH"))\n`;
           scr += `  (entmake\n`;
           scr += `    '(\n`;
@@ -593,6 +660,28 @@ export default function CrossSectionDesignWorkspace({
           scr += `  )\n`;
           scr += `  (command "_.LINE" p1 p2 "")\n`;
           scr += `)\n`;
+          scr += `(defun drawelev (pt txt lay col)\n`;
+          scr += `  (let* ((x (car pt))\n`;
+          scr += `         (y (cadr pt))\n`;
+          scr += `         (ybase (+ y 1.25))\n`;
+          scr += `         (xleft (- x 1.25))\n`;
+          scr += `         (xright (+ x 1.25))\n`;
+          scr += `         (xlineend (+ x 2.75))\n`;
+          scr += `         (p-apex (list x y 0.0))\n`;
+          scr += `         (p-topmid (list x ybase 0.0))\n`;
+          scr += `         (p-topleft (list xleft ybase 0.0))\n`;
+          scr += `         (p-topright (list xright ybase 0.0))\n`;
+          scr += `         (p-lineend (list xlineend ybase 0.0))\n`;
+          scr += `         (p-text (list (+ x 0.1) (+ ybase 0.2) 0.0))\n`;
+          scr += `        )\n`;
+          scr += `    (drawline p-apex p-topleft lay col "BYLAYER")\n`;
+          scr += `    (drawline p-topleft p-topmid lay col "BYLAYER")\n`;
+          scr += `    (drawline p-topmid p-apex lay col "BYLAYER")\n`;
+          scr += `    (drawsolid p-apex p-topmid p-topright p-topright lay col)\n`;
+          scr += `    (drawline p-topleft p-lineend lay col "BYLAYER")\n`;
+          scr += `    (drawtext p-text txt 1.8 0 "TextBang" "VnTimeH" col)\n`;
+          scr += `  )\n`;
+          scr += `)\n`;
           scr += `(defun drawtext (pt txt h rot lay sty col)\n`;
           scr += `  (entmake\n`;
           scr += `    (list\n`;
@@ -633,6 +722,13 @@ export default function CrossSectionDesignWorkspace({
           scr += `  (setvar "CECOLOR" (itoa col))\n`;
           scr += `  (setvar "CELTYPE" "Continuous")\n`;
           scr += `  (command "_.SOLID" p1 p2 p3 p4 "")\n`;
+          scr += `)\n`;
+          scr += `(defun drawhatch (pat scale lay col del / boundary)\n`;
+          scr += `  (setq boundary (entlast))\n`;
+          scr += `  (setvar "CLAYER" lay)\n`;
+          scr += `  (setvar "CECOLOR" (itoa col))\n`;
+          scr += `  (command "_.-HATCH" "_P" pat scale 0.0 "_S" boundary "" "")\n`;
+          scr += `  (if (= del 1) (entdel boundary))\n`;
           scr += `)\n`;
 
           interface SheetStake {
@@ -749,6 +845,10 @@ export default function CrossSectionDesignWorkspace({
                 stakeParams
               );
 
+              const pMDAO1 = Number(geom.params?.MDAO1) || 1.5;
+              const pMDAO2 = Number(geom.params?.MDAO2) || 1.0;
+              const pMDAP = Number(geom.params?.MDAP) || 1.75;
+
               let Y_datum = 0;
               if (hasSecond) {
                 if (idxInSheet === 0) {
@@ -796,6 +896,32 @@ export default function CrossSectionDesignWorkspace({
                 });
                 res += `  )`;
                 return res;
+              };
+
+              const makeLispSlopeText = (p1: { x: number; y: number }, p2: { x: number; y: number }, text: string) => {
+                const left = p1.x < p2.x ? p1 : p2;
+                const right = p1.x < p2.x ? p2 : p1;
+                const dx = right.x - left.x;
+                const dy = right.y - left.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 0.1) return "";
+
+                const angleRad = Math.atan2(dy, dx);
+                let angleDeg = angleRad * (180 / Math.PI);
+                if (angleDeg > 90) angleDeg -= 180;
+                if (angleDeg < -90) angleDeg += 180;
+
+                const midX = (left.x + right.x) / 2;
+                const midY = (left.y + right.y) / 2;
+
+                const offsetDistance = 0.3;
+                const perpX = -Math.sin(angleRad) * offsetDistance;
+                const perpY = Math.cos(angleRad) * offsetDistance;
+
+                const textX = midX + perpX;
+                const textY = midY + perpY;
+
+                return `(drawtextcenter (list ${mapX(textX)} ${mapY(textY)}) "${unicodeToTCVN3(text)}" 1.5 ${angleDeg.toFixed(1)} "TextBang" "VnTimeH" 7)\n`;
               };
 
               const minTerrainY = Math.min(...pts.map(p => p.elevation));
@@ -933,11 +1059,11 @@ export default function CrossSectionDesignWorkspace({
                 }
               }
 
-              // Organic Stripping Line (BocThaoMoc - Color 8)
+              // Organic Stripping Line (BocThaoMoc - Color 1)
               if (geom.strippedLines && geom.strippedLines.length > 0) {
                 geom.strippedLines.forEach(linePts => {
                   if (linePts.length > 1) {
-                    scr += `(drawpoly\n${makeLispList(linePts)}\n  "BocThaoMoc" 8 0 "BYLAYER"\n)\n`;
+                    scr += `(drawpoly\n${makeLispList(linePts)}\n  "BocThaoMoc" 1 0 "BYLAYER"\n)\n`;
                   }
                 });
               }
@@ -945,13 +1071,18 @@ export default function CrossSectionDesignWorkspace({
               // 1. Tim Kenh Centerline Axis (Yellow/Color 2)
               scr += `(drawline (list ${mapX(geom.cx)} ${yRow2}) (list ${mapX(geom.cx)} ${mapY(geom.cy + geom.H_total + 2.5)}) "TimKenh" 2 "BYLAYER")\n`;
 
-              // 2. Water Level Line (MNTK - Blue/Color 5)
-              scr += `(drawline (list ${mapX(geom.cx - geom.b/2 - 1.0)} ${mapY(geom.waterLevelAtStake)}) (list ${mapX(geom.cx + geom.b/2 + 1.0)} ${mapY(geom.waterLevelAtStake)}) "MucNuoc" 5 "BYLAYER")\n`;
-              scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.waterLevelAtStake + 0.1)}) "+ MNTK: ${geom.waterLevelAtStake.toFixed(2)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
-              scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.cy + geom.H_total + 0.1)}) "+ Z_dinh: ${geom.topLevelAtStake.toFixed(2)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
-              scr += `(drawtext (list ${mapX(geom.cx + geom.b/2 + 0.8)} ${mapY(geom.cy - 0.2)}) "+ Z_day: ${geom.dayKenhAtStake.toFixed(2)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+              // 2. Water Level Line (MNTK - Blue/Color 5) & Elevation Markers (drawelev)
+              const X_level = geom.cx + geom.b/2 + 1.8;
+              scr += `(drawline (list ${mapX(geom.cx + geom.b/2)} ${mapY(geom.topLevelAtStake)}) (list ${mapX(X_level)} ${mapY(geom.topLevelAtStake)}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawelev (list ${mapX(X_level)} ${mapY(geom.topLevelAtStake)}) "${geom.topLevelAtStake.toFixed(2)}" "TextBang" 7)\n`;
 
-              // 3. Concrete Canal Box (Green/Color 3)
+              scr += `(drawline (list ${mapX(geom.cx - geom.b/2 - 1.0)} ${mapY(geom.waterLevelAtStake)}) (list ${mapX(X_level)} ${mapY(geom.waterLevelAtStake)}) "MucNuoc" 5 "BYLAYER")\n`;
+              scr += `(drawelev (list ${mapX(X_level)} ${mapY(geom.waterLevelAtStake)}) "${geom.waterLevelAtStake.toFixed(2)}" "TextBang" 7)\n`;
+
+              scr += `(drawline (list ${mapX(geom.cx + geom.b/2)} ${mapY(geom.dayKenhAtStake)}) (list ${mapX(X_level)} ${mapY(geom.dayKenhAtStake)}) "KhungBang" 7 "BYLAYER")\n`;
+              scr += `(drawelev (list ${mapX(X_level)} ${mapY(geom.dayKenhAtStake)}) "${geom.dayKenhAtStake.toFixed(2)}" "TextBang" 7)\n`;
+
+              // 3. Concrete Canal Box (Red/Color 1) with Hatch ANSI31 (Color 8, Scale 1.0)
               const concBoxPts = [
                 geom.outerLeftTop, geom.p0, geom.p1_top, geom.p1_right,
                 geom.p2_left, geom.p2_top, geom.p3, geom.outerRightTop,
@@ -959,9 +1090,10 @@ export default function CrossSectionDesignWorkspace({
                 geom.concLeftBottom, geom.concLeftTop, geom.outerLeftBottom
               ];
               if (concBoxPts.filter(Boolean).length > 2) {
-                scr += `(drawpoly\n${makeLispList(concBoxPts.filter(Boolean))}\n  "MatKenh_BeTong" 3 1 "BYLAYER"\n)\n`;
+                scr += `(drawpoly\n${makeLispList(concBoxPts.filter(Boolean))}\n  "MatKenh_BeTong" 1 1 "BYLAYER"\n)\n`;
+                scr += `(drawhatch "ANSI31" 5.0 "MatKenh_BeTong" 8 0)\n`;
               }
-
+ 
               // 4. Lean Concrete Layer (Red/Color 1)
               const dlotPts = [
                 geom.dlotLeftTop, geom.dlotRightTop, geom.dlotRightBottom, geom.dlotLeftBottom
@@ -969,55 +1101,117 @@ export default function CrossSectionDesignWorkspace({
               if (dlotPts.filter(Boolean).length > 2) {
                 scr += `(drawpoly\n${makeLispList(dlotPts.filter(Boolean))}\n  "BeTongLot" 1 1 "BYLAYER"\n)\n`;
               }
+ 
+              // Leader and Text for Canal Material & Lining Material (Ghi chỉ dẫn vật liệu dưới đáy kênh)
+              const vatLieuKenh = (geom.params.vatLieuKenh || "BTCT M250").toUpperCase();
+              const vatLieuLot = (geom.params.vatLieuLot || "Bê tông lót M100").toUpperCase();
+              const VAT_thick = Number(geom.params.VAT) || 0.1;
+              const DLOT_thick = Number(geom.params.DLOT) || 0.1;
+ 
+              const thickKenh = VAT_thick.toFixed(2).replace('.', ',');
+              const thickLot = DLOT_thick.toFixed(2).replace('.', ',');
+ 
+              // Text for Canal Material & Lining Material (Bỏ đường gióng, hiển thị thẳng hàng bên dưới, lệch phải tim kênh 0.25*b)
+              const yShelfKenh = geom.cy - DLOT_thick - 1.2;
+              const yShelfLot = geom.cy - DLOT_thick - 1.6;
+              const xText = geom.cx + 0.25 * geom.b;
+ 
+              let matKenhText = `- ${vatLieuKenh}`;
+              if (!matKenhText.includes("DÀY")) {
+                matKenhText += ` DÀY ${thickKenh}M`;
+              }
+              let matLotText = `- ${vatLieuLot}`;
+              if (!matLotText.includes("DÀY")) {
+                matLotText += ` DÀY ${thickLot}M`;
+              }
+ 
+              // Draw upper text (canal material)
+              scr += `(drawtext (list ${mapX(xText)} ${mapY(yShelfKenh)} 0.0) "${unicodeToTCVN3(matKenhText)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
+ 
+              // Draw lower text (lining material)
+              scr += `(drawtext (list ${mapX(xText)} ${mapY(yShelfLot)} 0.0) "${unicodeToTCVN3(matLotText)}" 1.8 0 "TextBang" "VnTimeH" 7)\n`;
 
-              // Cover Plate (Green/Color 3)
+              // Cover Plate (Red/Color 1)
               if (geom.coTamNap && geom.tamNapLeftBottom && geom.tamNapRightBottom && geom.tamNapRightTop && geom.tamNapLeftTop) {
                 const tamNapPts = [
                   geom.tamNapLeftBottom, geom.tamNapRightBottom, geom.tamNapRightTop, geom.tamNapLeftTop
                 ];
-                scr += `(drawpoly\n${makeLispList(tamNapPts.filter(Boolean))}\n  "MatKenh_BeTong" 3 1 "BYLAYER"\n)\n`;
+                scr += `(drawpoly\n${makeLispList(tamNapPts.filter(Boolean))}\n  "MatKenh_BeTong" 1 1 "BYLAYER"\n)\n`;
               }
 
-              // 5. Embankment Slopes & Bank Tops (Yellow/Color 2)
+              // 5. Embankment Slopes & Bank Tops (Red/Color 1)
               if (!geom.coKenhNgam) {
                 if (geom.point5) {
-                  const ptsList = [geom.point5, geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].filter(Boolean);
-                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+                  const ptsList = [geom.point5, geom.bankOuterLeft, geom.bankInnerLeft].filter(Boolean);
+                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 1 0 "BYLAYER"\n)\n`;
+                  scr += makeLispSlopeText(geom.point5, geom.bankOuterLeft, `1:${String(pMDAP).replace('.', ',')}`);
                 } else {
-                  const ptsList = [geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].filter(Boolean);
-                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+                  const ptsList = [geom.bankOuterLeft, geom.bankInnerLeft].filter(Boolean);
+                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 1 0 "BYLAYER"\n)\n`;
                 }
 
                 if (geom.point6) {
-                  const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight, geom.point6].filter(Boolean);
-                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+                  const ptsList = [geom.bankInnerRight, geom.bankOuterRight, geom.point6].filter(Boolean);
+                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 1 0 "BYLAYER"\n)\n`;
+                  scr += makeLispSlopeText(geom.bankOuterRight, geom.point6, `1:${String(pMDAP).replace('.', ',')}`);
                 } else {
-                  const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight].filter(Boolean);
-                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+                  const ptsList = [geom.bankInnerRight, geom.bankOuterRight].filter(Boolean);
+                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 1 0 "BYLAYER"\n)\n`;
+                }
+
+                // Hatch AR-SAND chính xác theo vùng màu vàng đất đắp (scale = 1.0, màu 8) - xóa đường bao sau khi tô
+                if (geom.isFullFill) {
+                  if (geom.fullEmbankmentPoly && geom.fullEmbankmentPoly.length > 2) {
+                    scr += `(drawpoly\n${makeLispList(geom.fullEmbankmentPoly)}\n  "MaiDap" 8 1 "BYLAYER"\n)\n`;
+                    scr += `(drawhatch "AR-SAND" 1.0 "MaiDap" 8 1)\n`;
+                  }
+                } else {
+                  if (geom.leftEmbankmentPoly && geom.leftEmbankmentPoly.length > 2) {
+                    scr += `(drawpoly\n${makeLispList(geom.leftEmbankmentPoly)}\n  "MaiDap" 8 1 "BYLAYER"\n)\n`;
+                    scr += `(drawhatch "AR-SAND" 1.0 "MaiDap" 8 1)\n`;
+                  }
+                  if (geom.rightEmbankmentPoly && geom.rightEmbankmentPoly.length > 2) {
+                    scr += `(drawpoly\n${makeLispList(geom.rightEmbankmentPoly)}\n  "MaiDap" 8 1 "BYLAYER"\n)\n`;
+                    scr += `(drawhatch "AR-SAND" 1.0 "MaiDap" 8 1)\n`;
+                  }
                 }
               }
 
-              // 6. Excavation Slopes (Magenta/Color 6)
-              if (geom.isALowerThanTerrain && geom.intersectA) {
-                scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.intersectA.x)} ${mapY(geom.intersectA.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              // 6. Excavation Slopes (Red/Color 1)
+              if (geom.isALowerThanTerrain) {
+                if (geom.params.bankCutOption === 'mo_rong_bo' && geom.point5) {
+                  scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.point5.x)} ${mapY(geom.point5.y)}) "MaiDao" 1 "BYLAYER")\n`;
+                  scr += makeLispSlopeText(geom.pointA, geom.point5, `1:${String(pMDAO1).replace('.', ',')}`);
+                } else if (geom.intersectA) {
+                  scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.intersectA.x)} ${mapY(geom.intersectA.y)}) "MaiDao" 1 "BYLAYER")\n`;
+                  scr += makeLispSlopeText(geom.pointA, geom.intersectA, `1:${String(pMDAO1).replace('.', ',')}`);
+                }
               }
-              if (geom.isBLowerThanTerrain && geom.intersectB) {
-                scr += `(drawline (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) (list ${mapX(geom.intersectB.x)} ${mapY(geom.intersectB.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              if (geom.isBLowerThanTerrain) {
+                if (geom.params.bankCutOption === 'mo_rong_bo' && geom.point6) {
+                  scr += `(drawline (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) (list ${mapX(geom.point6.x)} ${mapY(geom.point6.y)}) "MaiDao" 1 "BYLAYER")\n`;
+                  scr += makeLispSlopeText(geom.pointB, geom.point6, `1:${String(pMDAO1).replace('.', ',')}`);
+                } else if (geom.intersectB) {
+                  scr += `(drawline (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) (list ${mapX(geom.intersectB.x)} ${mapY(geom.intersectB.y)}) "MaiDao" 1 "BYLAYER")\n`;
+                  scr += makeLispSlopeText(geom.pointB, geom.intersectB, `1:${String(pMDAO1).replace('.', ',')}`);
+                }
               }
-              if (geom.isLeftCut && geom.cutLeftFinal) {
-                scr += `(drawline (list ${mapX(geom.ditchTopLeft.x)} ${mapY(geom.ditchTopLeft.y)}) (list ${mapX(geom.cutLeftFinal.x)} ${mapY(geom.cutLeftFinal.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              if (geom.isLeftCut && geom.cutLeftFinal && geom.params.bankCutOption === 'mo_rong_bo') {
+                scr += `(drawline (list ${mapX(geom.ditchTopLeft.x)} ${mapY(geom.ditchTopLeft.y)}) (list ${mapX(geom.cutLeftFinal.x)} ${mapY(geom.cutLeftFinal.y)}) "MaiDao" 1 "BYLAYER")\n`;
+                scr += makeLispSlopeText(geom.ditchTopLeft, geom.cutLeftFinal, `1:${String(pMDAO2).replace('.', ',')}`);
               }
-              if (geom.isRightCut && geom.fillRight) {
-                scr += `(drawline (list ${mapX(geom.ditchTopRightRight.x)} ${mapY(geom.ditchTopRightRight.y)}) (list ${mapX(geom.fillRight.x)} ${mapY(geom.fillRight.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              if (geom.isRightCut && geom.fillRight && geom.params.bankCutOption === 'mo_rong_bo') {
+                scr += `(drawline (list ${mapX(geom.ditchTopRightRight.x)} ${mapY(geom.ditchTopRightRight.y)}) (list ${mapX(geom.fillRight.x)} ${mapY(geom.fillRight.y)}) "MaiDao" 1 "BYLAYER")\n`;
+                scr += makeLispSlopeText(geom.ditchTopRightRight, geom.fillRight, `1:${String(pMDAO2).replace('.', ',')}`);
               }
 
               // Bottom of excavation (AB / AE / EB)
               if (geom.isALowerThanTerrain && geom.isBLowerThanTerrain) {
-                scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) "MaiDao" 6 "BYLAYER")\n`;
+                scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) "MaiDao" 1 "BYLAYER")\n`;
               } else if (geom.isALowerThanTerrain && geom.pointE) {
-                scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.pointE.x)} ${mapY(geom.pointE.y)}) "MaiDao" 6 "BYLAYER")\n`;
+                scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.pointE.x)} ${mapY(geom.pointE.y)}) "MaiDao" 1 "BYLAYER")\n`;
               } else if (geom.isBLowerThanTerrain && geom.pointE) {
-                scr += `(drawline (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) (list ${mapX(geom.pointE.x)} ${mapY(geom.pointE.y)}) "MaiDao" 6 "BYLAYER")\n`;
+                scr += `(drawline (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) (list ${mapX(geom.pointE.x)} ${mapY(geom.pointE.y)}) "MaiDao" 1 "BYLAYER")\n`;
               }
 
               // 7. Drainage Ditches (Cyan/Color 4)
@@ -1165,6 +1359,17 @@ export default function CrossSectionDesignWorkspace({
           URL.revokeObjectURL(url);
           setIsExportModalOpen(false);
         }}
+      />
+      <TerrainDataOffcanvas
+        isOpen={isTerrainOffcanvasOpen}
+        onClose={() => setIsTerrainOffcanvasOpen(false)}
+        initialData={terrainDataOfSelectedStake}
+        stakeName={selectedStake?.name}
+        stakeChainage={selectedStake?.chainage}
+        stakeDatum={selectedStake?.datum}
+        centerOffset={selectedStake?.centerOffset}
+        centerElevation={selectedStake?.centerElevation}
+        onUpdate={handleUpdateTerrainData}
       />
     </div>
   );

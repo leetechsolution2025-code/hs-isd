@@ -192,9 +192,9 @@ export function drawLISPStructure(x: number, y: number, type: string, status: st
   const addLine = (p1x: number, p1y: number, p2x: number, p2y: number, ltype?: string) => {
     const p1 = pt(x, y, p1x, p1y, flip);
     const p2 = pt(x, y, p2x, p2y, flip);
-    scr += `(entmake (list '(0 . "LINE") '(8 . "KhungBang") '(62 . 1) (cons 10 (list ${p1.X.toFixed(3)} ${p1.Y.toFixed(3)} 0)) (cons 11 (list ${p2.X.toFixed(3)} ${p2.Y.toFixed(3)} 0))`;
-    if (ltype) scr += ` (cons 6 "${ltype}")`;
-    scr += `))\n`;
+    scr += `(entmake\n  (list\n    '(0 . "LINE")\n    '(8 . "KhungBang")\n    '(62 . 1)\n    (cons 10 (list ${p1.X.toFixed(3)} ${p1.Y.toFixed(3)} 0))\n    (cons 11 (list ${p2.X.toFixed(3)} ${p2.Y.toFixed(3)} 0))\n`;
+    if (ltype) scr += `    (cons 6 "${ltype}")\n`;
+    scr += `  )\n)\n`;
   };
   const addSolidRedCircle = (cx: number, cy: number, r: number) => {
     const segments = 16;
@@ -208,11 +208,11 @@ export function drawLISPStructure(x: number, y: number, type: string, status: st
       const p0 = pt(x, y, cx, cy, flip);
       const p1 = pt(x, y, x1, y1, flip);
       const p2 = pt(x, y, x2, y2, flip);
-      scr += `(entmake (list '(0 . "SOLID") '(8 . "KhungBang") '(62 . 1) ` +
-             `(cons 10 (list ${p0.X.toFixed(3)} ${p0.Y.toFixed(3)} 0)) ` +
-             `(cons 11 (list ${p1.X.toFixed(3)} ${p1.Y.toFixed(3)} 0)) ` +
-             `(cons 12 (list ${p2.X.toFixed(3)} ${p2.Y.toFixed(3)} 0)) ` +
-             `(cons 13 (list ${p2.X.toFixed(3)} ${p2.Y.toFixed(3)} 0))))\n`;
+      scr += `(entmake\n  (list\n    '(0 . "SOLID")\n    '(8 . "KhungBang")\n    '(62 . 1)\n` +
+             `    (cons 10 (list ${p0.X.toFixed(3)} ${p0.Y.toFixed(3)} 0))\n` +
+             `    (cons 11 (list ${p1.X.toFixed(3)} ${p1.Y.toFixed(3)} 0))\n` +
+             `    (cons 12 (list ${p2.X.toFixed(3)} ${p2.Y.toFixed(3)} 0))\n` +
+             `    (cons 13 (list ${p2.X.toFixed(3)} ${p2.Y.toFixed(3)} 0))\n  )\n)\n`;
     }
   };
   const addArc = (cx: number, cy: number, r: number, startA: number, endA: number) => {
@@ -225,7 +225,7 @@ export function drawLISPStructure(x: number, y: number, type: string, status: st
     }
     const saRad = sa * Math.PI / 180;
     const eaRad = ea * Math.PI / 180;
-    scr += `(entmake (list '(0 . "ARC") '(8 . "KhungBang") '(62 . 1) (cons 10 (list ${c.X.toFixed(3)} ${c.Y.toFixed(3)} 0)) (cons 40 ${(r * SCALE).toFixed(3)}) (cons 50 ${saRad.toFixed(3)}) (cons 51 ${eaRad.toFixed(3)})))\n`;
+    scr += `(entmake\n  (list\n    '(0 . "ARC")\n    '(8 . "KhungBang")\n    '(62 . 1)\n    (cons 10 (list ${c.X.toFixed(3)} ${c.Y.toFixed(3)} 0))\n    (cons 40 ${(r * SCALE).toFixed(3)})\n    (cons 50 ${saRad.toFixed(3)})\n    (cons 51 ${eaRad.toFixed(3)})\n  )\n)\n`;
   };
   const addRect = (rx: number, ry: number, w: number, h: number) => {
     addLine(rx, ry, rx+w, ry);
