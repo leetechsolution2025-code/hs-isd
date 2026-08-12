@@ -3150,8 +3150,16 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         <p className="mb-4 text-justify indent-8">
                           Lưu lượng yêu cầu đầu kênh cấp 1 tính từ công thức:
                         </p>
-                        <div className="text-center my-4 font-bold text-lg">
-                          Q<sub>yc</sub> = q • ω<sub>i</sub> • 10<sup>-3</sup> / η<sub>i</sub>
+                        <div className="flex items-center justify-center my-6 font-bold text-[14pt] font-['Times_New_Roman']">
+                          <span className="mr-3">Q<sub>yc</sub> =</span>
+                          <div className="flex flex-col items-center">
+                            <div className="px-4 pb-1 border-b border-black text-center">
+                              q • ω<sub>i</sub> • 10<sup>-3</sup>
+                            </div>
+                            <div className="px-4 pt-1 text-center">
+                              η<sub>i</sub>
+                            </div>
+                          </div>
                         </div>
                         <div className="mb-4">
                           <p className="italic font-medium">Trong đó:</p>
