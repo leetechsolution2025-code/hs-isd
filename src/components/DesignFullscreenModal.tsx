@@ -3213,8 +3213,16 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                         <p className="mb-4 text-justify indent-8">
                           Tổn thất lưu lượng do thấm trên mỗi phân đoạn kênh chính được tính toán theo công thức:
                         </p>
-                        <div className="text-center my-4 font-bold text-lg">
-                          Q<sub>loss</sub> = (10 • A<sub>1</sub> • Q<sub>sau</sub><sup>1-m<sub>1</sub></sup> • ΔL) / 1000 • K<sub>gc</sub>
+                        <div className="flex items-center justify-center my-6 font-bold text-[14pt] font-['Times_New_Roman']">
+                          <span className="mr-3">Q<sub>loss</sub> =</span>
+                          <div className="flex flex-col items-center">
+                            <div className="px-4 pb-1 border-b border-black text-center">
+                              10 • A<sub>1</sub> • Q<sub>sau</sub><sup>1-m<sub>1</sub></sup> • ΔL
+                            </div>
+                            <div className="px-4 pt-1 text-center">
+                              1000 • K<sub>gc</sub>
+                            </div>
+                          </div>
                         </div>
                         <div className="mb-4">
                           <p className="italic font-medium">Trong đó:</p>
