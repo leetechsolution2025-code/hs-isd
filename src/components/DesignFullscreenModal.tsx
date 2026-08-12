@@ -3678,129 +3678,127 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           [Nhập nội dung tính toán tại đây]
                         </p>
                       </div>
-                      ) : (
-                        <div
-                          className="bg-white shadow-md border border-slate-200 outline-none pt-[20mm] pr-[20mm] pb-[20mm] pl-[25mm] text-[14pt] leading-relaxed font-['Times_New_Roman'] w-[794px] min-h-[1123px] shrink-0"
-                          contentEditable={true}
-                          suppressContentEditableWarning={true}
-                        >
-                          <h3 className="font-bold text-lg mb-2 uppercase">1. BẢNG TỔNG HỢP KHỐI LƯỢNG</h3>
-                          <p className="mb-4 text-justify indent-8">
-                            Khối lượng đào đắp mặt cắt ngang của tuyến kênh chính {project?.name || 'Giữa'} được xác định từ các trắc ngang tự nhiên và mặt cắt thiết kế tương ứng của từng cọc. Dưới đây là bảng tổng hợp khối lượng chi tiết cho toàn tuyến:
-                          </p>
+                      ) : (() => {
+                        const stakeGeometries = (terrainStakes || []).map((stake) => {
+                          const geom = calculateCrossSectionGeometry(
+                            stake,
+                            computedSegments,
+                            segmentHydraulicResults,
+                            flowNodesData.flowNodes,
+                            nodeElevations,
+                            crossSectionParams
+                          );
+                          return {
+                            name: stake.name,
+                            chainage: stake.chainage,
+                            S_dao: geom.S_dao_trang || 0,
+                            S_dap: geom.S_dap || 0,
+                            S_boc: geom.S_boc_thao_moc || 0,
+                            L_co: geom.L_trong_co || 0,
+                          };
+                        });
 
-                          <div className="text-center font-bold my-3 text-[13pt] font-['Times_New_Roman']">
-                            Bảng 1. Khối lượng các mặt cắt ngang
-                          </div>
+                        let totalV_dao = 0;
+                        let totalV_dap = 0;
+                        let totalV_boc = 0;
+                        let totalS_co = 0;
+                        let totalDist = 0;
 
-                          <div className="my-4 overflow-x-auto">
-                            <table className="w-full text-[10pt] border-collapse border border-black font-['Times_New_Roman']">
-                              <thead>
-                                <tr className="bg-slate-50 text-center font-bold">
-                                  <th rowSpan={2} className="border border-black px-1 py-1 w-10">STT</th>
-                                  <th rowSpan={2} className="border border-black px-1 py-1">Tên cọc</th>
-                                  <th rowSpan={2} className="border border-black px-1 py-1 w-20">Lý trình (m)</th>
-                                  <th rowSpan={2} className="border border-black px-1 py-1 w-20">Khoảng cách (m)</th>
-                                  <th colSpan={4} className="border border-black px-1 py-1">Diện tích mặt cắt (m²)</th>
-                                  <th colSpan={4} className="border border-black px-1 py-1">Khối lượng (m³ / m²)</th>
-                                </tr>
-                                <tr className="bg-slate-50 text-center font-bold">
-                                  <th className="border border-black px-1 py-1 w-16">S đào</th>
-                                  <th className="border border-black px-1 py-1 w-16">S đắp</th>
-                                  <th className="border border-black px-1 py-1 w-16">S bóc TM</th>
-                                  <th className="border border-black px-1 py-1 w-16">L cỏ</th>
-                                  <th className="border border-black px-1 py-1 w-16">V đào</th>
-                                  <th className="border border-black px-1 py-1 w-16">V đắp</th>
-                                  <th className="border border-black px-1 py-1 w-16">V bóc TM</th>
-                                  <th className="border border-black px-1 py-1 w-16">S cỏ</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(() => {
-                                  if (!terrainStakes || terrainStakes.length === 0) {
-                                    return (
-                                      <tr>
-                                        <td colSpan={12} className="border border-black px-4 py-8 text-center text-slate-400 italic">
-                                          Chưa có dữ liệu trắc ngang
-                                        </td>
-                                      </tr>
-                                    );
-                                  }
+                        const segmentDetails = stakeGeometries.map((curr, idx) => {
+                          let dist = 0;
+                          let V_dao = 0;
+                          let V_dap = 0;
+                          let V_boc = 0;
+                          let S_co = 0;
 
-                                  // Pre-calculate all stake geometries
-                                  const stakeGeometries = terrainStakes.map((stake) => {
-                                    const geom = calculateCrossSectionGeometry(
-                                      stake,
-                                      computedSegments,
-                                      segmentHydraulicResults,
-                                      flowNodesData.flowNodes,
-                                      nodeElevations,
-                                      crossSectionParams
-                                    );
-                                    return {
-                                      name: stake.name,
-                                      chainage: stake.chainage,
-                                      S_dao: geom.S_dao_trang || 0,
-                                      S_dap: geom.S_dap || 0,
-                                      S_boc: geom.S_boc_thao_moc || 0,
-                                      L_co: geom.L_trong_co || 0,
-                                    };
-                                  });
+                          if (idx > 0) {
+                            const prev = stakeGeometries[idx - 1];
+                            dist = curr.chainage - prev.chainage;
+                            if (dist < 0) dist = 0;
 
-                                  let totalV_dao = 0;
-                                  let totalV_dap = 0;
-                                  let totalV_boc = 0;
-                                  let totalS_co = 0;
-                                  let totalDist = 0;
+                            V_dao = ((curr.S_dao + prev.S_dao) / 2) * dist;
+                            V_dap = ((curr.S_dap + prev.S_dap) / 2) * dist;
+                            V_boc = ((curr.S_boc + prev.S_boc) / 2) * dist;
+                            S_co = ((curr.L_co + prev.L_co) / 2) * dist;
 
-                                  const rows = stakeGeometries.map((curr, idx) => {
-                                    let dist = 0;
-                                    let V_dao = 0;
-                                    let V_dap = 0;
-                                    let V_boc = 0;
-                                    let S_co = 0;
+                            totalV_dao += V_dao;
+                            totalV_dap += V_dap;
+                            totalV_boc += V_boc;
+                            totalS_co += S_co;
+                            totalDist += dist;
+                          }
+                          return { dist, V_dao, V_dap, V_boc, S_co };
+                        });
 
-                                    if (idx > 0) {
-                                      const prev = stakeGeometries[idx - 1];
-                                      dist = curr.chainage - prev.chainage;
-                                      if (dist < 0) dist = 0;
+                        return (
+                          <div
+                            className="bg-white shadow-md border border-slate-200 outline-none pt-[20mm] pr-[20mm] pb-[20mm] pl-[25mm] text-[14pt] leading-relaxed font-['Times_New_Roman'] w-[794px] min-h-[1123px] shrink-0"
+                            contentEditable={true}
+                            suppressContentEditableWarning={true}
+                          >
+                            <p className="mb-4 text-justify indent-8">
+                              Khối lượng đào đắp mặt cắt ngang của tuyến kênh chính {project?.name || 'Giữa'} được xác định từ các trắc ngang tự nhiên và mặt cắt thiết kế tương ứng của từng cọc. Dưới đây là bảng tổng hợp khối lượng chi tiết cho toàn tuyến:
+                            </p>
 
-                                      V_dao = ((curr.S_dao + prev.S_dao) / 2) * dist;
-                                      V_dap = ((curr.S_dap + prev.S_dap) / 2) * dist;
-                                      V_boc = ((curr.S_boc + prev.S_boc) / 2) * dist;
-                                      S_co = ((curr.L_co + prev.L_co) / 2) * dist;
+                            <div className="text-center font-bold my-3 text-[13pt] font-['Times_New_Roman']">
+                              Bảng 1. Khối lượng các mặt cắt ngang
+                            </div>
 
-                                      totalV_dao += V_dao;
-                                      totalV_dap += V_dap;
-                                      totalV_boc += V_boc;
-                                      totalS_co += S_co;
-                                      totalDist += dist;
-                                    }
-
-                                    return (
-                                      <tr key={idx} className="text-center">
-                                        <td className="border border-black px-1 py-1">{idx + 1}</td>
-                                        <td className="border border-black px-1 py-1 font-semibold">{curr.name}</td>
-                                        <td className="border border-black px-1 py-1">{curr.chainage.toFixed(2)}</td>
-                                        <td className="border border-black px-1 py-1">{idx === 0 ? '-' : dist.toFixed(2)}</td>
-                                        
-                                        {/* Areas */}
-                                        <td className="border border-black px-1 py-1 text-slate-800">{curr.S_dao.toFixed(2)}</td>
-                                        <td className="border border-black px-1 py-1 text-slate-800">{curr.S_dap.toFixed(2)}</td>
-                                        <td className="border border-black px-1 py-1 text-slate-600">{curr.S_boc.toFixed(2)}</td>
-                                        <td className="border border-black px-1 py-1 text-slate-600">{curr.L_co.toFixed(2)}</td>
-                                        
-                                        {/* Volumes */}
-                                        <td className="border border-black px-1 py-1 font-medium text-blue-900">{idx === 0 ? '-' : V_dao.toFixed(2)}</td>
-                                        <td className="border border-black px-1 py-1 font-medium text-blue-900">{idx === 0 ? '-' : V_dap.toFixed(2)}</td>
-                                        <td className="border border-black px-1 py-1 text-slate-700">{idx === 0 ? '-' : V_boc.toFixed(2)}</td>
-                                        <td className="border border-black px-1 py-1 text-slate-700">{idx === 0 ? '-' : S_co.toFixed(2)}</td>
-                                      </tr>
-                                    );
-                                  });
-
-                                  // Add the total row
-                                  rows.push(
+                            <div className="my-4 overflow-x-auto">
+                              <table className="w-full text-[10pt] border-collapse border border-black font-['Times_New_Roman']">
+                                <thead>
+                                  <tr className="bg-slate-50 text-center font-bold">
+                                    <th rowSpan={2} className="border border-black px-1 py-1 w-10">STT</th>
+                                    <th rowSpan={2} className="border border-black px-1 py-1">Tên cọc</th>
+                                    <th rowSpan={2} className="border border-black px-1 py-1 w-20">Lý trình (m)</th>
+                                    <th rowSpan={2} className="border border-black px-1 py-1 w-20">Khoảng cách (m)</th>
+                                    <th colSpan={4} className="border border-black px-1 py-1">Diện tích mặt cắt (m²)</th>
+                                    <th colSpan={4} className="border border-black px-1 py-1">Khối lượng (m³ / m²)</th>
+                                  </tr>
+                                  <tr className="bg-slate-50 text-center font-bold">
+                                    <th className="border border-black px-1 py-1 w-16">S đào</th>
+                                    <th className="border border-black px-1 py-1 w-16">S đắp</th>
+                                    <th className="border border-black px-1 py-1 w-16">S bóc TM</th>
+                                    <th className="border border-black px-1 py-1 w-16">L cỏ</th>
+                                    <th className="border border-black px-1 py-1 w-16">V đào</th>
+                                    <th className="border border-black px-1 py-1 w-16">V đắp</th>
+                                    <th className="border border-black px-1 py-1 w-16">V bóc TM</th>
+                                    <th className="border border-black px-1 py-1 w-16">S cỏ</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {stakeGeometries.length === 0 ? (
+                                    <tr>
+                                      <td colSpan={12} className="border border-black px-4 py-8 text-center text-slate-400 italic">
+                                        Chưa có dữ liệu trắc ngang
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    stakeGeometries.map((curr, idx) => {
+                                      const { dist, V_dao, V_dap, V_boc, S_co } = segmentDetails[idx];
+                                      return (
+                                        <tr key={idx} className="text-center">
+                                          <td className="border border-black px-1 py-1">{idx + 1}</td>
+                                          <td className="border border-black px-1 py-1 font-semibold">{curr.name}</td>
+                                          <td className="border border-black px-1 py-1">{curr.chainage.toFixed(2)}</td>
+                                          <td className="border border-black px-1 py-1">{idx === 0 ? '-' : dist.toFixed(2)}</td>
+                                          
+                                          {/* Areas */}
+                                          <td className="border border-black px-1 py-1 text-slate-800">{curr.S_dao.toFixed(2)}</td>
+                                          <td className="border border-black px-1 py-1 text-slate-800">{curr.S_dap.toFixed(2)}</td>
+                                          <td className="border border-black px-1 py-1 text-slate-600">{curr.S_boc.toFixed(2)}</td>
+                                          <td className="border border-black px-1 py-1 text-slate-600">{curr.L_co.toFixed(2)}</td>
+                                          
+                                          {/* Volumes */}
+                                          <td className="border border-black px-1 py-1 font-medium text-blue-900">{idx === 0 ? '-' : V_dao.toFixed(2)}</td>
+                                          <td className="border border-black px-1 py-1 font-medium text-blue-900">{idx === 0 ? '-' : V_dap.toFixed(2)}</td>
+                                          <td className="border border-black px-1 py-1 text-slate-700">{idx === 0 ? '-' : V_boc.toFixed(2)}</td>
+                                          <td className="border border-black px-1 py-1 text-slate-700">{idx === 0 ? '-' : S_co.toFixed(2)}</td>
+                                        </tr>
+                                      );
+                                    })
+                                  )}
+                                  {stakeGeometries.length > 0 && (
                                     <tr key="total" className="text-center font-bold bg-slate-50">
                                       <td colSpan={3} className="border border-black px-1 py-1.5 text-right uppercase">Tổng cộng:</td>
                                       <td className="border border-black px-1 py-1.5">{totalDist.toFixed(2)}</td>
@@ -3810,15 +3808,65 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                                       <td className="border border-black px-1 py-1.5 text-slate-700">{totalV_boc.toFixed(2)}</td>
                                       <td className="border border-black px-1 py-1.5 text-slate-700">{totalS_co.toFixed(2)}</td>
                                     </tr>
-                                  );
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
 
-                                  return rows;
-                                })()}
-                              </tbody>
-                            </table>
+                            {/* Bảng tổng hợp khối lượng dưới Bảng 1 */}
+                            {stakeGeometries.length > 0 && (
+                              <>
+                                <div className="text-center font-bold my-3 text-[13pt] font-['Times_New_Roman'] mt-8">
+                                  Bảng 2. Bảng tổng hợp khối lượng
+                                </div>
+                                <div className="my-4 overflow-x-auto">
+                                  <table className="w-full text-[11pt] border-collapse border border-black font-['Times_New_Roman']">
+                                    <thead>
+                                      <tr className="bg-slate-50 text-center font-bold">
+                                        <th className="border border-black px-2 py-1.5 w-12">STT</th>
+                                        <th className="border border-black px-2 py-1.5">Hạng mục công việc</th>
+                                        <th className="border border-black px-2 py-1.5 w-24">Đơn vị</th>
+                                        <th className="border border-black px-2 py-1.5 w-32">Khối lượng</th>
+                                        <th className="border border-black px-2 py-1.5 w-48">Ghi chú</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr className="text-center">
+                                        <td className="border border-black px-2 py-1">1</td>
+                                        <td className="border border-black px-2 py-1 text-left font-medium">Đào đất kênh</td>
+                                        <td className="border border-black px-2 py-1">m³</td>
+                                        <td className="border border-black px-2 py-1 font-semibold text-right pr-4">{totalV_dao.toFixed(2)}</td>
+                                        <td className="border border-black px-2 py-1 text-left pl-3 text-slate-500">Tính từ Bảng 1</td>
+                                      </tr>
+                                      <tr className="text-center">
+                                        <td className="border border-black px-2 py-1">2</td>
+                                        <td className="border border-black px-2 py-1 text-left font-medium">Đắp đất kênh</td>
+                                        <td className="border border-black px-2 py-1">m³</td>
+                                        <td className="border border-black px-2 py-1 font-semibold text-right pr-4">{totalV_dap.toFixed(2)}</td>
+                                        <td className="border border-black px-2 py-1 text-left pl-3 text-slate-500">Tính từ Bảng 1</td>
+                                      </tr>
+                                      <tr className="text-center">
+                                        <td className="border border-black px-2 py-1">3</td>
+                                        <td className="border border-black px-2 py-1 text-left font-medium">Bóc đất hữu cơ/thảo mộc</td>
+                                        <td className="border border-black px-2 py-1">m³</td>
+                                        <td className="border border-black px-2 py-1 font-semibold text-right pr-4">{totalV_boc.toFixed(2)}</td>
+                                        <td className="border border-black px-2 py-1 text-left pl-3 text-slate-500">Tính từ Bảng 1</td>
+                                      </tr>
+                                      <tr className="text-center">
+                                        <td className="border border-black px-2 py-1">4</td>
+                                        <td className="border border-black px-2 py-1 text-left font-medium">Trồng cỏ bảo vệ mái dốc</td>
+                                        <td className="border border-black px-2 py-1">m²</td>
+                                        <td className="border border-black px-2 py-1 font-semibold text-right pr-4">{totalS_co.toFixed(2)}</td>
+                                        <td className="border border-black px-2 py-1 text-left pl-3 text-slate-500">Tính từ Bảng 1</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
