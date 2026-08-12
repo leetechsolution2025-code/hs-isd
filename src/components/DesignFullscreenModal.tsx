@@ -3823,11 +3823,11 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                                   <table className="w-full text-[11pt] border-collapse border border-black font-['Times_New_Roman']">
                                     <thead>
                                       <tr className="bg-slate-50 text-center font-bold">
-                                        <th className="border border-black px-2 py-1.5 w-12">STT</th>
+                                        <th className="border border-black px-2 py-1.5 w-10">STT</th>
                                         <th className="border border-black px-2 py-1.5">Hạng mục công việc</th>
-                                        <th className="border border-black px-2 py-1.5 w-24">Đơn vị</th>
-                                        <th className="border border-black px-2 py-1.5 w-32">Khối lượng</th>
-                                        <th className="border border-black px-2 py-1.5 w-48">Ghi chú</th>
+                                        <th className="border border-black px-2 py-1.5 w-16">Đơn vị</th>
+                                        <th className="border border-black px-2 py-1.5 w-28">Khối lượng</th>
+                                        <th className="border border-black px-2 py-1.5 w-36">Ghi chú</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -3836,28 +3836,28 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                                         <td className="border border-black px-2 py-1 text-left font-medium">Đào đất kênh</td>
                                         <td className="border border-black px-2 py-1">m³</td>
                                         <td className="border border-black px-2 py-1 font-semibold text-right pr-4">{totalV_dao.toFixed(2)}</td>
-                                        <td className="border border-black px-2 py-1 text-left pl-3 text-slate-500">Tính từ Bảng 1</td>
+                                        <td className="border border-black px-2 py-1"></td>
                                       </tr>
                                       <tr className="text-center">
                                         <td className="border border-black px-2 py-1">2</td>
                                         <td className="border border-black px-2 py-1 text-left font-medium">Đắp đất kênh</td>
                                         <td className="border border-black px-2 py-1">m³</td>
                                         <td className="border border-black px-2 py-1 font-semibold text-right pr-4">{totalV_dap.toFixed(2)}</td>
-                                        <td className="border border-black px-2 py-1 text-left pl-3 text-slate-500">Tính từ Bảng 1</td>
+                                        <td className="border border-black px-2 py-1"></td>
                                       </tr>
                                       <tr className="text-center">
                                         <td className="border border-black px-2 py-1">3</td>
                                         <td className="border border-black px-2 py-1 text-left font-medium">Bóc đất hữu cơ/thảo mộc</td>
                                         <td className="border border-black px-2 py-1">m³</td>
                                         <td className="border border-black px-2 py-1 font-semibold text-right pr-4">{totalV_boc.toFixed(2)}</td>
-                                        <td className="border border-black px-2 py-1 text-left pl-3 text-slate-500">Tính từ Bảng 1</td>
+                                        <td className="border border-black px-2 py-1"></td>
                                       </tr>
                                       <tr className="text-center">
                                         <td className="border border-black px-2 py-1">4</td>
                                         <td className="border border-black px-2 py-1 text-left font-medium">Trồng cỏ bảo vệ mái dốc</td>
                                         <td className="border border-black px-2 py-1">m²</td>
                                         <td className="border border-black px-2 py-1 font-semibold text-right pr-4">{totalS_co.toFixed(2)}</td>
-                                        <td className="border border-black px-2 py-1 text-left pl-3 text-slate-500">Tính từ Bảng 1</td>
+                                        <td className="border border-black px-2 py-1"></td>
                                       </tr>
                                     </tbody>
                                   </table>
