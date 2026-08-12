@@ -1222,6 +1222,145 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
     }
   }, [focusedChainage]);
 
+  const execEditorCommand = (command: string, value: string = '') => {
+    document.execCommand(command, false, value);
+  };
+
+  const handleFontChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    execEditorCommand('fontName', e.target.value);
+  };
+
+  const handleFontSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const sizeMap: Record<string, string> = {
+      "12": "3",
+      "13": "3",
+      "14": "4",
+      "16": "4",
+      "18": "5",
+      "24": "6",
+    };
+    const val = sizeMap[e.target.value] || "3";
+    execEditorCommand('fontSize', val);
+  };
+
+  const handleInsertTable = () => {
+    const rows = prompt("Nhập số hàng:", "3");
+    const cols = prompt("Nhập số cột:", "3");
+    if (!rows || !cols) return;
+    
+    let tableHtml = '<table style="width:100%; border-collapse:collapse; margin:15px 0;"><thead><tr>';
+    for (let c = 0; c < parseInt(cols); c++) {
+      tableHtml += '<th style="border:1px solid black; padding:8px; background:#f8fafc; font-weight:bold; font-size:11pt; text-align:center;">Tiêu đề</th>';
+    }
+    tableHtml += '</tr></thead><tbody>';
+    for (let r = 0; r < parseInt(rows); r++) {
+      tableHtml += '<tr>';
+      for (let c = 0; c < parseInt(cols); c++) {
+        tableHtml += '<td style="border:1px solid black; padding:8px; font-size:11pt; text-align:center;">Dữ liệu</td>';
+      }
+      tableHtml += '</tr>';
+    }
+    tableHtml += '</tbody></table>';
+    
+    execEditorCommand('insertHTML', tableHtml);
+  };
+
+  const handleInsertImage = () => {
+    const url = prompt("Nhập URL hình ảnh:", "https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&w=400&q=80");
+    if (!url) return;
+    execEditorCommand('insertImage', url);
+  };
+
+  const handlePrint = () => {
+    const editorPages = document.querySelectorAll('[contentEditable="true"]');
+    if (editorPages.length === 0) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Không thể mở cửa sổ in. Vui lòng tắt chặn pop-up trên trình duyệt.");
+      return;
+    }
+
+    let html = `
+      <html>
+        <head>
+          <title>In Ho So Thiet Ke</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              background: white;
+              font-family: 'Times New Roman', Times, serif;
+            }
+            .print-page {
+              box-sizing: border-box;
+              width: 210mm;
+              min-height: 297mm;
+              padding-top: 20mm;
+              padding-right: 20mm;
+              padding-bottom: 20mm;
+              padding-left: 25mm;
+              font-size: 14pt;
+              line-height: 1.6;
+              background: white;
+              page-break-after: always;
+              word-wrap: break-word;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-family: 'Times New Roman', Times, serif;
+              font-size: 10pt;
+              margin: 15px 0;
+            }
+            th, td {
+              border: 1px solid black;
+              padding: 6px;
+            }
+            .text-center { text-align: center; }
+            .text-left { text-align: left; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .font-semibold { font-weight: 600; }
+            .italic { font-style: italic; }
+            .my-4 { margin-top: 1rem; margin-bottom: 1rem; }
+            .flex { display: flex; }
+            .items-center { align-items: center; }
+            .justify-center { justify-content: center; }
+            .flex-col { flex-direction: column; }
+            .border-b { border-bottom: 1px solid black; }
+            .pb-1 { padding-bottom: 0.25rem; }
+            .pt-1 { padding-top: 0.25rem; }
+            .px-4 { padding-left: 1rem; padding-right: 1rem; }
+            .mr-3 { margin-right: 0.75rem; }
+          </style>
+        </head>
+        <body>
+    `;
+
+    editorPages.forEach((page) => {
+      html += '<div class="print-page">' + page.innerHTML + '</div>';
+    });
+
+    html += `
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -2980,54 +3119,128 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                     {/* Word-like Toolbar */}
                     <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center gap-2 flex-wrap shadow-sm z-10">
                       <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-                        <button className="p-1.5 hover:bg-slate-100 rounded text-slate-600 tooltip" title="Lưu">
-                          <i className="bi bi-floppy"></i>
-                        </button>
-                        <button className="p-1.5 hover:bg-slate-100 rounded text-slate-600 tooltip" title="In">
+                        <button 
+                          onClick={handlePrint}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 tooltip" 
+                          title="In"
+                        >
                           <i className="bi bi-printer"></i>
                         </button>
                       </div>
 
                       <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-                        <select className="border border-slate-200 rounded px-2 py-1 text-sm bg-white hover:bg-slate-50 focus:outline-none">
-                          <option>Times New Roman</option>
-                          <option>Arial</option>
-                          <option>Roboto</option>
+                        <select 
+                          onChange={handleFontChange}
+                          className="border border-slate-200 rounded px-2 py-1 text-sm bg-white hover:bg-slate-50 focus:outline-none"
+                        >
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Roboto">Roboto</option>
                         </select>
-                        <select className="border border-slate-200 rounded px-2 py-1 text-sm bg-white hover:bg-slate-50 focus:outline-none w-[60px]">
-                          <option>12</option>
-                          <option>13</option>
-                          <option>14</option>
-                          <option>16</option>
-                          <option>18</option>
-                          <option>24</option>
+                        <select 
+                          onChange={handleFontSizeChange}
+                          className="border border-slate-200 rounded px-2 py-1 text-sm bg-white hover:bg-slate-50 focus:outline-none w-[60px]"
+                        >
+                          <option value="12">12</option>
+                          <option value="13">13</option>
+                          <option value="14">14</option>
+                          <option value="16">16</option>
+                          <option value="18">18</option>
+                          <option value="24">24</option>
                         </select>
                       </div>
 
                       <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 font-bold">B</button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 italic">I</button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 underline">U</button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 line-through">ab</button>
+                        <button 
+                          onClick={() => execEditorCommand('bold')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 font-bold"
+                        >
+                          B
+                        </button>
+                        <button 
+                          onClick={() => execEditorCommand('italic')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 italic"
+                        >
+                          I
+                        </button>
+                        <button 
+                          onClick={() => execEditorCommand('underline')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 underline"
+                        >
+                          U
+                        </button>
+                        <button 
+                          onClick={() => execEditorCommand('strikeThrough')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700 line-through"
+                        >
+                          ab
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-text-left"></i></button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-text-center"></i></button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-text-right"></i></button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-justify"></i></button>
+                        <button 
+                          onClick={() => execEditorCommand('justifyLeft')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                        >
+                          <i className="bi bi-text-left"></i>
+                        </button>
+                        <button 
+                          onClick={() => execEditorCommand('justifyCenter')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                        >
+                          <i className="bi bi-text-center"></i>
+                        </button>
+                        <button 
+                          onClick={() => execEditorCommand('justifyRight')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                        >
+                          <i className="bi bi-text-right"></i>
+                        </button>
+                        <button 
+                          onClick={() => execEditorCommand('justifyFull')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                        >
+                          <i className="bi bi-justify"></i>
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-1">
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-list-ul"></i></button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-list-ol"></i></button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-table"></i></button>
-                        <button className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"><i className="bi bi-image"></i></button>
-                      </div>
-
-                      <div className="ml-auto">
-                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1 shadow-sm transition-colors">
-                          <i className="bi bi-magic"></i> Tạo tự động
+                        <button 
+                          onClick={() => execEditorCommand('insertUnorderedList')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                        >
+                          <i className="bi bi-list-ul"></i>
+                        </button>
+                        <button 
+                          onClick={() => execEditorCommand('insertOrderedList')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                        >
+                          <i className="bi bi-list-ol"></i>
+                        </button>
+                        <button 
+                          onClick={handleInsertTable}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                        >
+                          <i className="bi bi-table"></i>
+                        </button>
+                        <button 
+                          onClick={handleInsertImage}
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded text-slate-700"
+                        >
+                          <i className="bi bi-image"></i>
                         </button>
                       </div>
                     </div>
