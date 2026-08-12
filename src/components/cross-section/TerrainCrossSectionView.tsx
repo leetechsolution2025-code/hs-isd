@@ -8,6 +8,7 @@ interface TerrainCrossSectionViewProps {
   flowNodes: any[];
   nodeElevations: any;
   crossSectionParams: Record<number, any>;
+  stakeParams?: Record<string, any>;
   showOverlay?: boolean;
   showCanal?: boolean;
   showPoints?: boolean;
@@ -20,6 +21,7 @@ export default function TerrainCrossSectionView({
   flowNodes,
   nodeElevations,
   crossSectionParams,
+  stakeParams,
   showOverlay = true,
   showCanal = true,
   showPoints = true
@@ -102,7 +104,9 @@ export default function TerrainCrossSectionView({
     coNgamMong: false,
     vatLieuKenh: 'Bê tông cốt thép M250', vatLieuLot: 'Bê tông lót M100', vatLieuRanh: 'Xây gạch mác 75'
   };
-  const params = { ...defaultParams, ...(crossSectionParams[selectedSegmentIdx] || {}) };
+  const segParam = crossSectionParams[selectedSegmentIdx] || {};
+  const localParams = (stake && stakeParams)?.[stake.name] || {};
+  const params = { ...defaultParams, ...segParam, ...localParams };
 
   const _bOut = parseFloat(selectedHydraulics.b_out);
   const _b = parseFloat(selectedHydraulics.b);

@@ -110,7 +110,8 @@ export function calculateCrossSectionGeometry(
   segmentHydraulicResults: Record<number, any>,
   flowNodes: any[],
   nodeElevations: any,
-  crossSectionParams: Record<number, any>
+  crossSectionParams: Record<number, any>,
+  stakeParams?: Record<string, any>
 ): CrossSectionGeometryResult {
   const stakeChainage = stake.chainage;
   let selectedSegmentIdx = 0;
@@ -168,7 +169,8 @@ export function calculateCrossSectionGeometry(
     coNgamMong: false, coBocThaoMoc: true, dayBocThaoMoc: 0.2
   };
   const segParam = crossSectionParams?.[selectedSegmentIdx] || {};
-  const params = { ...defaultParams, ...segParam };
+  const localParams = stakeParams?.[stake.name] || {};
+  const params = { ...defaultParams, ...segParam, ...localParams };
 
   const _bOut = parseFloat(selectedHydraulics.b_out);
   const _b = parseFloat(selectedHydraulics.b);

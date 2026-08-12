@@ -183,6 +183,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
   const [kminCoef, setKminCoef] = useState<string>('0.8');
   const [flowDifference, setFlowDifference] = useState<string>('');
   const [crossSectionParams, setCrossSectionParams] = useState<Record<number, any>>({});
+  const [stakeParams, setStakeParams] = useState<Record<string, any>>({});
   const [terrainStakes, setTerrainStakes] = useState<CrossSectionStake[]>([]);
 
   const [hoverTooltip, setHoverTooltip] = useState<{ x: number, y: number, data: any, segIdx: number } | null>(null);
@@ -487,6 +488,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
               if (config.controlElevationValue !== undefined) setControlElevationValue(config.controlElevationValue);
               if (config.maintainWaterLevel !== undefined) setMaintainWaterLevel(config.maintainWaterLevel);
               if (config.crossSectionParams !== undefined) setCrossSectionParams(config.crossSectionParams);
+              if (config.stakeParams !== undefined) setStakeParams(config.stakeParams);
             } catch (e) {
               console.error("Failed to parse design config", e);
             }
@@ -581,7 +583,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
       controlElevationType,
       controlElevationValue,
       maintainWaterLevel,
-      crossSectionParams
+      crossSectionParams,
+      stakeParams
     };
 
     const [resLandmark, resCanal, resConfig, resCrossSection] = await Promise.all([
@@ -4082,7 +4085,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                             segmentHydraulicResults,
                             flowNodesData.flowNodes,
                             nodeElevations,
-                            crossSectionParams
+                            crossSectionParams,
+                            stakeParams
                           );
                           return {
                             name: stake.name,
@@ -4544,6 +4548,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                       project={project}
                       crossSectionParams={crossSectionParams}
                       setCrossSectionParams={setCrossSectionParams}
+                      stakeParams={stakeParams}
+                      setStakeParams={setStakeParams}
                       terrainStakes={terrainStakes}
                       setTerrainStakes={setTerrainStakes}
                     />

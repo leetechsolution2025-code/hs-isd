@@ -60,6 +60,8 @@ interface CrossSectionDesignWorkspaceProps {
   project: any;
   crossSectionParams: Record<number, any>;
   setCrossSectionParams: React.Dispatch<React.SetStateAction<Record<number, any>>>;
+  stakeParams: Record<string, any>;
+  setStakeParams: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   terrainStakes: CrossSectionStake[];
   setTerrainStakes: React.Dispatch<React.SetStateAction<CrossSectionStake[]>>;
 }
@@ -72,6 +74,8 @@ export default function CrossSectionDesignWorkspace({
   project,
   crossSectionParams,
   setCrossSectionParams,
+  stakeParams,
+  setStakeParams,
   terrainStakes,
   setTerrainStakes
 }: CrossSectionDesignWorkspaceProps) {
@@ -103,34 +107,40 @@ export default function CrossSectionDesignWorkspace({
     }
   }
 
-  const handleParamChange = (key: string, val: any, isNumeric = false) => {
+  const handleParamChange = (key: string, val: any) => {
+    if (!terrainStakes || terrainStakes.length === 0) return;
+    const selectedStake = terrainStakes[selectedStakeIdx];
+    if (!selectedStake) return;
+
     const updated = {
-      ...crossSectionParams,
-      [selectedSegmentIdx]: {
-        ...(crossSectionParams[selectedSegmentIdx] || {}),
-        [key]: isNumeric ? parseFloat(val) : val
+      ...stakeParams,
+      [selectedStake.name]: {
+        ...(stakeParams[selectedStake.name] || {}),
+        [key]: val
       }
     };
-    setCrossSectionParams(updated);
+    setStakeParams(updated);
   };
 
-  const segParams = crossSectionParams?.[selectedSegmentIdx] || {};
-  const bankCutOption = segParams.bankCutOption || 'dap_bo';
-  const coRanhThoatNuocMai = segParams.coRanhThoatNuocMai || false;
+  const selectedStake = terrainStakes?.[selectedStakeIdx];
+  const localStakeParams = selectedStake ? (stakeParams[selectedStake.name] || {}) : {};
+  const bankCutOption = localStakeParams.bankCutOption || 'dap_bo';
+  const coRanhThoatNuocMai = localStakeParams.coRanhThoatNuocMai || false;
 
   // Call geometry helper for the selected stake to know isLeftCut/isRightCut
   let isLeftCut = false;
   let isRightCut = false;
   if (terrainStakes && terrainStakes[selectedStakeIdx]) {
-    const selectedStake = terrainStakes[selectedStakeIdx];
+    const selectedStake2 = terrainStakes[selectedStakeIdx];
     try {
       const geom = calculateCrossSectionGeometry(
-        selectedStake,
+        selectedStake2,
         computedSegments,
         segmentHydraulicResults,
         flowNodes,
         nodeElevations,
-        crossSectionParams
+        crossSectionParams,
+        stakeParams
       );
       isLeftCut = geom.isLeftCut;
       isRightCut = geom.isRightCut;
@@ -223,6 +233,7 @@ export default function CrossSectionDesignWorkspace({
                     flowNodes={flowNodes}
                     nodeElevations={nodeElevations}
                     crossSectionParams={crossSectionParams}
+                    stakeParams={stakeParams}
                     showOverlay={showOverlay}
                     showCanal={showCanal}
                     showPoints={showPoints}
@@ -580,7 +591,8 @@ export default function CrossSectionDesignWorkspace({
               segmentHydraulicResults,
               flowNodes,
               nodeElevations,
-              crossSectionParams
+              crossSectionParams,
+              stakeParams
             );
             const gDatum = isNaN(geom.stakeDatum) ? Math.floor(minTerrainY) - 2.0 : geom.stakeDatum;
             const yRulerMax = maxTerrainY + 2.0;
@@ -660,7 +672,8 @@ export default function CrossSectionDesignWorkspace({
                 segmentHydraulicResults,
                 flowNodes,
                 nodeElevations,
-                crossSectionParams
+                crossSectionParams,
+                stakeParams
               );
 
               let Y_datum = 0;
@@ -978,7 +991,8 @@ export default function CrossSectionDesignWorkspace({
               segmentHydraulicResults,
               flowNodes,
               nodeElevations,
-              crossSectionParams
+              crossSectionParams,
+              stakeParams
             );
             return {
               name: stake.name,
