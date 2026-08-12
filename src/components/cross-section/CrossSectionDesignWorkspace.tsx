@@ -134,6 +134,9 @@ export default function CrossSectionDesignWorkspace({
   const coKenhNgam = !!localStakeParams.coKenhNgam;
   const coTamNap = coKenhNgam || !!localStakeParams.coTamNap;
   const chieuDayTamNap = localStakeParams.chieuDayTamNap !== undefined ? localStakeParams.chieuDayTamNap : 0.1;
+  const coRanhThoatNuoc = localStakeParams.coRanhThoatNuoc !== undefined
+    ? localStakeParams.coRanhThoatNuoc
+    : (crossSectionParams[selectedSegmentIdx]?.coRanhThoatNuoc || false);
 
   // Call geometry helper for the selected stake to know isLeftCut/isRightCut
   let isLeftCut = false;
@@ -378,6 +381,22 @@ export default function CrossSectionDesignWorkspace({
                       <option value="dap_bo">Đắp bờ dốc xuống (mặc định)</option>
                       <option value="mo_rong_bo">Mở rộng thềm bờ nằm ngang</option>
                     </select>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <span className={`text-xs font-medium ${!hasCutSide ? 'text-slate-400' : 'text-slate-700'}`}>
+                      Có rãnh thoát nước dọc
+                    </span>
+                    <label className={`relative inline-flex items-center ${!hasCutSide ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        disabled={!hasCutSide}
+                        className="sr-only peer"
+                        checked={coRanhThoatNuoc}
+                        onChange={(e) => handleParamChange('coRanhThoatNuoc', e.target.checked)}
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
                   </div>
 
                   {bankCutOption === 'mo_rong_bo' && (
@@ -992,11 +1011,20 @@ export default function CrossSectionDesignWorkspace({
                 scr += `(drawline (list ${mapX(geom.ditchTopRightRight.x)} ${mapY(geom.ditchTopRightRight.y)}) (list ${mapX(geom.fillRight.x)} ${mapY(geom.fillRight.y)}) "MaiDao" 6 "BYLAYER")\n`;
               }
 
+              // Bottom of excavation (AB / AE / EB)
+              if (geom.isALowerThanTerrain && geom.isBLowerThanTerrain) {
+                scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              } else if (geom.isALowerThanTerrain && geom.pointE) {
+                scr += `(drawline (list ${mapX(geom.pointA.x)} ${mapY(geom.pointA.y)}) (list ${mapX(geom.pointE.x)} ${mapY(geom.pointE.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              } else if (geom.isBLowerThanTerrain && geom.pointE) {
+                scr += `(drawline (list ${mapX(geom.pointB.x)} ${mapY(geom.pointB.y)}) (list ${mapX(geom.pointE.x)} ${mapY(geom.pointE.y)}) "MaiDao" 6 "BYLAYER")\n`;
+              }
+
               // 7. Drainage Ditches (Cyan/Color 4)
-              if (geom.hasDitchLeft && geom.ditchPolysLeft) {
+              if (geom.ditchPolysLeft && geom.ditchPolysLeft.length > 0) {
                 scr += `(drawpoly\n${makeLispList(geom.ditchPolysLeft)}\n  "RanhThoatNuoc" 4 1 "BYLAYER"\n)\n`;
               }
-              if (geom.hasDitchRight && geom.ditchPolysRight) {
+              if (geom.ditchPolysRight && geom.ditchPolysRight.length > 0) {
                 scr += `(drawpoly\n${makeLispList(geom.ditchPolysRight)}\n  "RanhThoatNuoc" 4 1 "BYLAYER"\n)\n`;
               }
 
