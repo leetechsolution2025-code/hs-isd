@@ -865,10 +865,11 @@ export default function CrossSectionDesignWorkspace({
         onExportCSV={() => {
           const stakesToExport = terrainStakes.length > 0 ? terrainStakes : [];
           
-          let csv = "\uFEFFBẢNG TỔNG HỢP KHỐI LƯỢNG MẶT CẮT NGANG\n";
-          csv += "Cọc,Lý trình (m),S đào (m2),S đắp (m2),S bóc TM (m2),L trồng cỏ (m)\n";
+          let csv = "\uFEFFBẢNG TỔNG HỢP KHỐI LƯỢNG MẶT CẮT NGANG (PHƯƠNG PHÁP BÌNH QUÂN KHOẢNG CÁCH)\n";
+          csv += "Cọc,Lý trình (m),Khoảng cách lẻ (m),S đào (m2),S đắp (m2),S bóc TM (m2),L trồng cỏ (m),V đào (m3),V đắp (m3),V bóc TM (m3),S cỏ (m2)\n";
           
-          stakesToExport.forEach(stake => {
+          // Pre-calculate all stake geometries
+          const stakeGeometries = stakesToExport.map((stake) => {
             const geom = calculateCrossSectionGeometry(
               stake,
               computedSegments,
@@ -877,9 +878,58 @@ export default function CrossSectionDesignWorkspace({
               nodeElevations,
               crossSectionParams
             );
-            csv += `${stake.name},${stake.chainage.toFixed(2)},${geom.S_dao_trang.toFixed(2)},${geom.S_dap.toFixed(2)},${geom.S_boc_thao_moc.toFixed(2)},${geom.L_trong_co.toFixed(2)}\n`;
+            return {
+              name: stake.name,
+              chainage: stake.chainage,
+              S_dao: geom.S_dao_trang || 0,
+              S_dap: geom.S_dap || 0,
+              S_boc: geom.S_boc_thao_moc || 0,
+              L_co: geom.L_trong_co || 0,
+            };
           });
-          
+
+          let totalV_dao = 0;
+          let totalV_dap = 0;
+          let totalV_boc = 0;
+          let totalS_co = 0;
+          let totalDist = 0;
+
+          stakeGeometries.forEach((curr, idx) => {
+            let dist = 0;
+            let V_dao = 0;
+            let V_dap = 0;
+            let V_boc = 0;
+            let S_co = 0;
+
+            if (idx > 0) {
+              const prev = stakeGeometries[idx - 1];
+              dist = curr.chainage - prev.chainage;
+              if (dist < 0) dist = 0;
+
+              V_dao = ((curr.S_dao + prev.S_dao) / 2) * dist;
+              V_dap = ((curr.S_dap + prev.S_dap) / 2) * dist;
+              V_boc = ((curr.S_boc + prev.S_boc) / 2) * dist;
+              S_co = ((curr.L_co + prev.L_co) / 2) * dist;
+
+              totalV_dao += V_dao;
+              totalV_dap += V_dap;
+              totalV_boc += V_boc;
+              totalS_co += S_co;
+              totalDist += dist;
+            }
+
+            const distStr = idx === 0 ? "0.00" : dist.toFixed(2);
+            const V_daoStr = idx === 0 ? "0.00" : V_dao.toFixed(2);
+            const V_dapStr = idx === 0 ? "0.00" : V_dap.toFixed(2);
+            const V_bocStr = idx === 0 ? "0.00" : V_boc.toFixed(2);
+            const S_coStr = idx === 0 ? "0.00" : S_co.toFixed(2);
+
+            csv += `${curr.name},${curr.chainage.toFixed(2)},${distStr},${curr.S_dao.toFixed(2)},${curr.S_dap.toFixed(2)},${curr.S_boc.toFixed(2)},${curr.L_co.toFixed(2)},${V_daoStr},${V_dapStr},${V_bocStr},${S_coStr}\n`;
+          });
+
+          // Add Total row
+          csv += `TỔNG CỘNG,,${totalDist.toFixed(2)},,,,${totalV_dao.toFixed(2)},${totalV_dap.toFixed(2)},${totalV_boc.toFixed(2)},${totalS_co.toFixed(2)}\n`;
+
           csv += "\n\nBẢNG TỌA ĐỘ TỰ NHIÊN CHI TIẾT\n";
           csv += "Cọc,Lý trình (m),Khoảng cách lẻ (m),Cao độ (m)\n";
           

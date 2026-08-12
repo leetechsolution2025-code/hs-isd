@@ -23,6 +23,7 @@ import ExportSettingsOffcanvas, { ExportSettings } from './ExportSettingsOffcanv
 import { generateProfileDXF } from '@/lib/exportDXF';
 import { generateProfileLISP } from '@/lib/exportLISP';
 import CrossSectionDesignWorkspace, { CrossSectionStake } from './cross-section/CrossSectionDesignWorkspace';
+import { calculateCrossSectionGeometry } from '@/lib/crossSectionGeometry';
 
 interface DesignFullscreenModalProps {
   isOpen: boolean;
@@ -1315,7 +1316,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                 <span className="text-[11px] font-medium text-slate-600">Tên mốc</span>
               </label>
               <div className="w-px h-3 bg-slate-200"></div>
-              <button 
+              <button
                 onClick={() => setShowLandmarkList(true)}
                 className="text-[11px] font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap"
               >
@@ -1654,8 +1655,8 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                     disabled={!autoSegment}
                     onClick={handleAutoSegmentCalculator}
                     className={`p-1 flex items-center justify-center rounded border transition-colors ${autoSegment
-                        ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100'
-                        : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                      ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100'
+                      : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
                       }`}
                     title="Tự động phân đoạn"
                   >
@@ -2943,7 +2944,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors ${activeDocTab === 'thuyet_minh' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     <i className="bi bi-file-earmark-word text-base"></i>
-                    Thuyết minh thiết kế
+                    Phụ lục tính toán
                   </button>
                   <button
                     onClick={() => setActiveDocTab('phu_luc')}
@@ -3048,7 +3049,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           <p className="text-center mb-1 uppercase">{project?.location ? (project.location.toLowerCase().includes('tỉnh') || project.location.toLowerCase().includes('thành phố') ? project.location : `Tỉnh ${project.location}`) : '..............................................................'}</p>
                           <p className="text-center mb-[80px] uppercase">{project?.phase?.name || project?.phaseId || '..............................................................'}</p>
 
-                          <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">{activeDocTab === 'phu_luc' ? 'PHỤ LỤC KHỐI LƯỢNG' : 'THUYẾT MINH THIẾT KẾ'}</h1>
+                          <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">{activeDocTab === 'phu_luc' ? 'PHỤ LỤC KHỐI LƯỢNG' : 'PHỤ LỤC TÍNH TOÁN'}</h1>
                           <p className="text-center font-bold uppercase mb-[80px]">SỐ HIỆU: {project?.code || '....................'}</p>
                         </div>
 
@@ -3088,7 +3089,7 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           <p className="text-center mb-1 uppercase">{project?.location ? (project.location.toLowerCase().includes('tỉnh') || project.location.toLowerCase().includes('thành phố') ? project.location : `Tỉnh ${project.location}`) : '..............................................................'}</p>
                           <p className="text-center mb-[80px] uppercase">{project?.phase?.name || project?.phaseId || '..............................................................'}</p>
 
-                          <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">{activeDocTab === 'phu_luc' ? 'PHỤ LỤC KHỐI LƯỢNG' : 'THUYẾT MINH THIẾT KẾ'}</h1>
+                          <h1 className="text-center font-bold text-[28pt] mb-2 uppercase">{activeDocTab === 'phu_luc' ? 'PHỤ LỤC KHỐI LƯỢNG' : 'PHỤ LỤC TÍNH TOÁN'}</h1>
                           <p className="text-center font-bold uppercase mb-[60px]">SỐ HIỆU: {project?.code || '....................'}</p>
 
                           <div className="w-[80%] mx-auto mt-4 mb-auto">
@@ -3130,32 +3131,694 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                       </div>
 
                       {/* Nội dung chính */}
-                      <div
-                        className="bg-white shadow-md border border-slate-200 outline-none pt-[20mm] pr-[20mm] pb-[20mm] pl-[25mm] text-[14pt] leading-relaxed font-['Times_New_Roman'] w-[794px] min-h-[1123px] shrink-0"
-                        contentEditable={true}
-                        suppressContentEditableWarning={true}
-                      >
-                        <h3 className="font-bold text-lg mb-2 uppercase">1. GIỚI THIỆU CHUNG</h3>
-                        <p className="mb-4 text-justify indent-8">
-                          Báo cáo này trình bày kết quả tính toán và thiết kế kỹ thuật cho dự án {project?.name || 'Hệ thống thuỷ lợi Sông Sỏi'}.
-                          Tài liệu này được tự động tạo dựa trên số liệu phân tích mạng lưới và các thông số thiết kế...
+                      {activeDocTab === 'thuyet_minh' ? (
+                        <div
+                          className="bg-white shadow-md border border-slate-200 outline-none pt-[20mm] pr-[20mm] pb-[20mm] pl-[25mm] text-[14pt] leading-relaxed font-['Times_New_Roman'] w-[794px] min-h-[1123px] shrink-0"
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                        >
+                        <h3 className="font-bold text-lg mb-2 uppercase">1. CÁC CHỈ TIÊU TÍNH TOÁN</h3>
+                        <p className="mb-4 text-justify indent-8 text-slate-400">
+                          [Nhập nội dung các chỉ tiêu tính toán tại đây]
                         </p>
 
-                        <h3 className="font-bold text-lg mb-2 mt-6 uppercase">2. SỐ LIỆU ĐẦU VÀO</h3>
-                        <ul className="list-disc pl-12 mb-4">
-                          <li className="mb-1">Lưu lượng yêu cầu: ...</li>
-                          <li className="mb-1">Hệ số nhám: ...</li>
-                          <li className="mb-1">Mực nước khống chế: ...</li>
+                        <h3 className="font-bold text-lg mb-2 mt-6 uppercase">2. TÍNH TOÁN THUỶ LỰC KÊNH</h3>
+                        <h4 className="font-bold text-base mb-2 mt-4">2.1. Xác định lưu lượng yêu cầu đầu các kênh nhánh</h4>
+                        <p className="mb-4 text-justify indent-8">
+                          Lưu lượng yêu cầu của các kênh nhánh cấp 1 được tính toán trên cơ sở diện tích đảm bảo tưới của từng kênh, số liệu về diện tích tưới được xác định từ bản đồ khu tưới 1:10.000
+                        </p>
+                        <p className="mb-4 text-justify indent-8">
+                          Lưu lượng yêu cầu đầu kênh cấp 1 tính từ công thức:
+                        </p>
+                        <div className="text-center my-4 font-bold text-lg">
+                          Q<sub>yc</sub> = q • ω<sub>i</sub> • 10<sup>-3</sup> / η<sub>i</sub>
+                        </div>
+                        <div className="mb-4">
+                          <p className="italic font-medium">Trong đó:</p>
+                          <ul className="list-none pl-6 space-y-1">
+                            <li>Q<sub>yc</sub> : Lưu lượng tưới yêu cầu (m³/s)</li>
+                            <li>q : Hệ số tưới (l/s/ha)</li>
+                            <li>ω<sub>i</sub> : Diện tích tưới kênh phụ trách (ha)</li>
+                            <li>η<sub>i</sub> : Hệ số lợi dụng kênh mương của kênh tưới</li>
+                          </ul>
+                        </div>
+                        <p className="mb-4 text-justify indent-8">
+                          Theo điều 5.3.2 trong TCVN 4118-85, trang 17, do thiếu tài liệu thực tế nên hệ số lợi dụng kênh mương của các kênh nhánh cấp 1 được nội suy theo Phụ lục 6-Hệ số lợi dụng của kênh nhỏ, trang 41.
+                        </p>
+                        <ul className="list-disc pl-12 mb-4 space-y-1">
+                          <li>Loại kênh : A và B</li>
+                          <li>Mức độ thấm : rất ít</li>
                         </ul>
-                      </div>
+                        <p className="mb-4 text-justify indent-8">
+                          Kết quả tính toán được thể hiện trong bảng sau:
+                        </p>
 
-                    </div>
-                  </div>
-                )}
-                {activeDocTab === 'phu_luc' && (
-                  <div className="p-6">
-                    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 flex items-center justify-center min-h-[300px]">
-                      <p className="text-slate-500">Đang phát triển tính năng tạo phụ lục khối lượng...</p>
+                        <div className="my-4 overflow-x-auto">
+                          <table className="w-full text-[12pt] border-collapse border border-black font-['Times_New_Roman']">
+                            <thead>
+                              <tr className="bg-slate-50 text-center font-bold">
+                                <th className="border border-black px-2 py-1.5 w-12 text-center">STT</th>
+                                <th className="border border-black px-2 py-1.5 text-center">Tên kênh</th>
+                                <th className="border border-black px-2 py-1.5 text-center">Lý trình (m)</th>
+                                <th className="border border-black px-2 py-1.5 text-center">Diện tích (ha)</th>
+                                <th className="border border-black px-2 py-1.5 text-center">Hệ số η</th>
+                                <th className="border border-black px-2 py-1.5 text-center">Q<sub>yc</sub> (m³/s)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {flowNodesData.sortedBranches && flowNodesData.sortedBranches.length > 0 ? (
+                                flowNodesData.sortedBranches.map((branch: any, idx: number) => (
+                                  <tr key={branch.id || idx} className="text-center">
+                                    <td className="border border-black px-2 py-1">{idx + 1}</td>
+                                    <td className="border border-black px-2 py-1 text-left">{branch.name || `Kênh nhánh ${idx + 1}`}</td>
+                                    <td className="border border-black px-2 py-1">{formatNum(branch.chainage, 2)}</td>
+                                    <td className="border border-black px-2 py-1">{formatNum(branch.totalArea || ((Number(branch.riceArea) || 0) + (Number(branch.fruitArea) || 0)), 2)}</td>
+                                    <td className="border border-black px-2 py-1">{formatNum(branch.efficiency || 0, 3)}</td>
+                                    <td className="border border-black px-2 py-1 font-bold">{formatNum(branch.totalFlow || 0, 3)}</td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={6} className="border border-black px-2 py-4 text-slate-500 italic">Chưa có dữ liệu kênh nhánh</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <h4 className="font-bold text-base mb-2 mt-4">2.2. Tính toán phân bố lưu lượng trên kênh chính</h4>
+                        <p className="mb-4 text-justify indent-8">
+                          Phân bố lưu lượng trên tuyến kênh chính được xác định bằng phương pháp cộng dồn ngược dòng từ cuối kênh lên đầu kênh, có tính đến lưu lượng yêu cầu của các kênh nhánh và tổn thất rò rỉ (thấm) trên từng phân đoạn kênh.
+                        </p>
+                        <p className="mb-4 text-justify indent-8">
+                          Tổn thất lưu lượng do thấm trên mỗi phân đoạn kênh chính được tính toán theo công thức:
+                        </p>
+                        <div className="text-center my-4 font-bold text-lg">
+                          Q<sub>loss</sub> = (10 • A<sub>1</sub> • Q<sub>sau</sub><sup>1-m<sub>1</sub></sup> • ΔL) / 1000 • K<sub>gc</sub>
+                        </div>
+                        <div className="mb-4">
+                          <p className="italic font-medium">Trong đó:</p>
+                          <ul className="list-none pl-6 space-y-1">
+                            <li>Q<sub>loss</sub> : Tổn thất lưu lượng thấm trên phân đoạn (m³/s)</li>
+                            <li>Q<sub>sau</sub> : Lưu lượng nước ở cuối phân đoạn kênh chính (m³/s)</li>
+                            <li>ΔL : Chiều dài phân đoạn kênh chính (km)</li>
+                            <li>A<sub>1</sub>, m<sub>1</sub> : Các hệ số thấm phụ thuộc vào loại đất và mức độ thấm của nền kênh</li>
+                            <li>K<sub>gc</sub> : Hệ số gia cố kênh (hệ số giảm tổn thất thấm)</li>
+                          </ul>
+                        </div>
+                        <p className="mb-4 text-justify indent-8">
+                          Kết quả tính toán phân bố lưu lượng trên kênh chính được tổng hợp chi tiết trong bảng dưới đây:
+                        </p>
+
+                        <div className="my-4 overflow-x-auto">
+                          <table className="w-full text-[12pt] border-collapse border border-black font-['Times_New_Roman']">
+                            <thead>
+                              <tr className="bg-slate-50 text-center font-bold">
+                                <th className="border border-black px-2 py-1.5 w-12 text-center" rowSpan={2}>STT</th>
+                                <th className="border border-black px-2 py-1.5 text-center" rowSpan={2}>Vị trí / Công trình</th>
+                                <th className="border border-black px-2 py-1.5 text-center" rowSpan={2}>Lý trình (m)</th>
+                                <th className="border border-black px-2 py-1.5 text-center" rowSpan={2}>Độ thấm</th>
+                                <th className="border border-black px-2 py-1 text-center" colSpan={3}>Lưu lượng (m³/s)</th>
+                              </tr>
+                              <tr className="bg-slate-50 text-center font-bold">
+                                <th className="border border-black px-2 py-1 text-center w-24">Kênh nhánh</th>
+                                <th className="border border-black px-2 py-1 text-center w-24">Tổn thất thấm</th>
+                                <th className="border border-black px-2 py-1 text-center w-24">Kênh chính</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {/* 1. Đầu kênh */}
+                              <tr className="text-center">
+                                <td className="border border-black px-2 py-1">1</td>
+                                <td className="border border-black px-2 py-1 text-left font-bold">Đầu kênh chính</td>
+                                <td className="border border-black px-2 py-1">0.00</td>
+                                <td className="border border-black px-2 py-1 text-slate-400">-</td>
+                                <td className="border border-black px-2 py-1 text-slate-400">-</td>
+                                <td className="border border-black px-2 py-1 text-slate-400">-</td>
+                                <td className="border border-black px-2 py-1 font-bold text-blue-700">
+                                  {formatNum(flowNodesData.flowNodes.find((n: any) => n.type === 'dau')?.q_truoc, 3)}
+                                </td>
+                              </tr>
+
+                              {/* 2. Các nhánh */}
+                              {flowNodesData.sortedBranches && flowNodesData.sortedBranches.length > 0 ? (
+                                flowNodesData.sortedBranches.map((branch: any, idx: number) => {
+                                  const permId = segmentPermeabilities[branch.id] || permeabilityLevel;
+                                  const permOpt = permeabilityMainOptions.find(o => o.id === permId);
+                                  const permName = permOpt ? permOpt.name : 'Rất ít';
+
+                                  const lossVal = idx === 0
+                                    ? flowNodesData.flowNodes.find((n: any) => n.type === 'dau')?.loss
+                                    : flowNodesData.flowNodes.find((n: any) => n.id === flowNodesData.sortedBranches[idx - 1].id)?.loss;
+
+                                  const nodeVal = flowNodesData.flowNodes.find((n: any) => n.id === branch.id);
+
+                                  return (
+                                    <React.Fragment key={branch.id || idx}>
+                                      {/* Phân đoạn thấm trước nhánh */}
+                                      <tr className="text-center bg-slate-50/50 italic text-[11pt]">
+                                        <td className="border border-black px-2 py-0.5 text-slate-400">-</td>
+                                        <td className="border border-black px-2 py-0.5 text-left text-slate-500"></td>
+                                        <td className="border border-black px-2 py-0.5 text-slate-400">-</td>
+                                        <td className="border border-black px-2 py-0.5 text-slate-600 whitespace-nowrap">{permName}</td>
+                                        <td className="border border-black px-2 py-0.5 text-slate-400">-</td>
+                                        <td className="border border-black px-2 py-0.5 text-slate-700 font-medium">
+                                          {formatNum(lossVal, 4)}
+                                        </td>
+                                        <td className="border border-black px-2 py-0.5 text-slate-400">-</td>
+                                      </tr>
+
+                                      {/* Nút rẽ nhánh */}
+                                      <tr className="text-center font-medium">
+                                        <td className="border border-black px-2 py-1">{idx + 2}</td>
+                                        <td className="border border-black px-2 py-1 text-left text-slate-800 font-medium">
+                                          {branch.name || `Kênh nhánh ${idx + 1}`}
+                                        </td>
+                                        <td className="border border-black px-2 py-1">{formatNum(branch.chainage, 2)}</td>
+                                        <td className="border border-black px-2 py-1 text-slate-400">-</td>
+                                        <td className="border border-black px-2 py-1 text-blue-600 font-medium">{formatNum(branch.totalFlow, 3)}</td>
+                                        <td className="border border-black px-2 py-1 text-slate-400">-</td>
+                                        <td className="border border-black px-2 py-1 font-bold text-slate-700 bg-slate-50/20">
+                                          {formatNum(nodeVal?.q_truoc, 3)}
+                                        </td>
+                                      </tr>
+                                    </React.Fragment>
+                                  );
+                                })
+                              ) : null}
+
+                              {/* 3. Cuối kênh */}
+                              {flowNodesData.flowNodes.length > 0 && (() => {
+                                const lastNode = flowNodesData.flowNodes.find((n: any) => n.type === 'cuoi');
+                                const lastBranch = flowNodesData.sortedBranches[flowNodesData.sortedBranches.length - 1];
+                                const lastLoss = lastBranch
+                                  ? flowNodesData.flowNodes.find((n: any) => n.id === lastBranch.id)?.loss
+                                  : 0;
+
+                                const permId = segmentPermeabilities['cuoi'] || permeabilityLevel;
+                                const permOpt = permeabilityMainOptions.find(o => o.id === permId);
+                                const permName = permOpt ? permOpt.name : 'Rất ít';
+
+                                return (
+                                  <>
+                                    {/* Phân đoạn cuối kênh */}
+                                    <tr className="text-center bg-slate-50/50 italic text-[11pt]">
+                                      <td className="border border-black px-2 py-0.5 text-slate-400">-</td>
+                                      <td className="border border-black px-2 py-0.5 text-left text-slate-500"></td>
+                                      <td className="border border-black px-2 py-0.5 text-slate-400">-</td>
+                                      <td className="border border-black px-2 py-0.5 text-slate-600">{permName}</td>
+                                      <td className="border border-black px-2 py-0.5 text-slate-400">-</td>
+                                      <td className="border border-black px-2 py-0.5 text-slate-700 font-medium">
+                                        {formatNum(lastLoss, 4)}
+                                      </td>
+                                      <td className="border border-black px-2 py-0.5 text-slate-400">-</td>
+                                    </tr>
+
+                                    <tr className="text-center font-bold">
+                                      <td className="border border-black px-2 py-1">
+                                        {(flowNodesData.sortedBranches?.length || 0) + 2}
+                                      </td>
+                                      <td className="border border-black px-2 py-1 text-left text-red-700">Cuối kênh chính</td>
+                                      <td className="border border-black px-2 py-1">{formatNum(lastNode?.chainage || 0, 2)}</td>
+                                      <td className="border border-black px-2 py-1 text-slate-400">-</td>
+                                      <td className="border border-black px-2 py-1 text-slate-400">-</td>
+                                      <td className="border border-black px-2 py-1 text-slate-400">-</td>
+                                      <td className="border border-black px-2 py-1 text-red-700">
+                                        {formatNum(lastNode?.q_sau, 3)}
+                                      </td>
+                                    </tr>
+                                  </>
+                                );
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <h4 className="font-bold text-base mb-2 mt-4">2.3. Tính toán xác định kích thước kênh chính</h4>
+                        <p className="mb-4 text-justify indent-8">
+                          Tính toán kích thước kênh chính {project?.name || 'Giữa'} được áp dụng phương pháp dòng ổn định đều với các thông số tính toán như sau:
+                        </p>
+                        <ul className="list-disc pl-12 mb-4 space-y-1">
+                          <li>Hình thức kênh: Mặt cắt hình chữ nhật.</li>
+                          <li>Độ dốc đáy kênh: {bottomSlope || '0.0003'}</li>
+                        </ul>
+                        <p className="mb-4 text-justify indent-8">
+                          Tổng chiều dài kênh chính {project?.name || 'Giữa'} là {formatNum((flowNodesData.flowNodes[flowNodesData.flowNodes.length - 1]?.chainage || 0) / 1000, 2)}km được chia thành {computedSegments.length} đoạn. Lưu lượng thiết kế cho mỗi đoạn là lưu lượng lớn nhất của đoạn đó. Việc xác định kích thước mặt cắt kênh được áp dụng công thức:
+                        </p>
+                        <div className="text-center my-4 font-bold text-lg font-['Times_New_Roman'] italic">
+                          Q = C • ω • √<span className="border-t border-black">R • i</span>
+                        </div>
+                        <div className="mb-4">
+                          <p className="italic font-medium">Trong đó:</p>
+                          <ul className="list-none pl-6 space-y-1">
+                            <li>Q - lưu lượng tính toán (m³/s).</li>
+                            <li>ω - diện tích mặt cắt ướt của kênh (m²).</li>
+                            <li>R - bán kính thủy lực (m).</li>
+                            <li>i - độ dốc đáy kênh.</li>
+                            <li>C - hệ số Sezy, xác định theo công thức: C = (1/n) • R<sup>1/6</sup></li>
+                            <li>n - hệ số nhám lòng kênh.</li>
+                          </ul>
+                        </div>
+                        <p className="mb-4 text-justify indent-8">
+                          Kết quả tính toán kích thước kênh được tổng hợp trong bảng sau:
+                        </p>
+
+                        <div className="text-center font-bold my-3 text-[13pt] font-['Times_New_Roman']">
+                          Bảng 16. Kết quả tính toán kích thước kênh chính {project?.name || 'Giữa'}
+                        </div>
+
+                        <div className="my-4 overflow-x-auto">
+                          <table className="w-full text-[11pt] border-collapse border border-black font-['Times_New_Roman']">
+                            <thead>
+                              <tr className="bg-slate-50 text-center font-bold">
+                                <th className="border border-black px-1.5 py-2 w-12 text-center" rowSpan={2}>Đoạn kênh</th>
+                                <th className="border border-black px-1.5 py-1 text-center" colSpan={2}>Đoạn kênh</th>
+                                <th className="border border-black px-1.5 py-2 text-center w-20" rowSpan={2}>Trường hợp</th>
+                                <th className="border border-black px-1.5 py-1 text-center" colSpan={5}>Số liệu đầu vào</th>
+                                <th className="border border-black px-1.5 py-1 text-center" colSpan={2}>Kết quả tính toán</th>
+                              </tr>
+                              <tr className="bg-slate-50 text-center font-bold">
+                                <th className="border border-black px-1.5 py-1 text-center w-14">Từ (m)</th>
+                                <th className="border border-black px-1.5 py-1 text-center w-14">Đến (m)</th>
+                                <th className="border border-black px-1.5 py-1 text-center w-14">Q (m³/s)</th>
+                                <th className="border border-black px-1.5 py-1 text-center w-14">B (m)</th>
+                                <th className="border border-black px-1.5 py-1 text-center w-10">m</th>
+                                <th className="border border-black px-1.5 py-1 text-center w-14">i</th>
+                                <th className="border border-black px-1.5 py-1 text-center w-12">n</th>
+                                <th className="border border-black px-1.5 py-1 text-center w-14">v (m/s)</th>
+                                <th className="border border-black px-1.5 py-1 text-center w-14">h (m)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {computedSegments.map((seg, segIdx) => {
+                                const res = segmentHydraulicResults[segIdx] || {};
+                                const startNode = flowNodesData.flowNodes[seg.startIdx];
+                                const endNodeIdx = seg.endIdx !== null && seg.endIdx < flowNodesData.flowNodes.length ? seg.endIdx : flowNodesData.flowNodes.length - 1;
+                                const endNode = flowNodesData.flowNodes[endNodeIdx];
+
+                                const q_des = startNode?.q_sau || 0;
+                                const kMax = getKMaxCoefficient(q_des);
+                                const q_max = q_des * kMax;
+                                const q_min = q_des * (parseFloat(kminCoef) || 0.8);
+
+                                const toRoman = (num: number) => {
+                                  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+                                  return roman[num] || (num + 1).toString();
+                                };
+
+                                return (
+                                  <React.Fragment key={segIdx}>
+                                    {/* Dòng Trường hợp Lớn nhất */}
+                                    <tr className="text-center">
+                                      <td className="border border-black px-1.5 py-1 font-bold" rowSpan={3}>
+                                        {toRoman(segIdx)}
+                                      </td>
+                                      <td className="border border-black px-1.5 py-1" rowSpan={3}>
+                                        {formatNum(startNode?.chainage || 0, 1)}
+                                      </td>
+                                      <td className="border border-black px-1.5 py-1" rowSpan={3}>
+                                        {formatNum(endNode?.chainage || 0, 1)}
+                                      </td>
+                                      <td className="border border-black px-1.5 py-1 text-left font-medium">Lớn nhất</td>
+                                      <td className="border border-black px-1.5 py-1 font-semibold">{formatNum(q_max, 2)}</td>
+                                      <td className="border border-black px-1.5 py-1" rowSpan={3}>
+                                        {res.b_out || '-'}
+                                      </td>
+                                      <td className="border border-black px-1.5 py-1" rowSpan={3}>
+                                        {res.m || '0'}
+                                      </td>
+                                      <td className="border border-black px-1.5 py-1" rowSpan={3}>
+                                        {res.i || '0.0003'}
+                                      </td>
+                                      <td className="border border-black px-1.5 py-1" rowSpan={3}>
+                                        {res.n || '0.017'}
+                                      </td>
+                                      <td className="border border-black px-1.5 py-1 font-medium">{res.v_max || '-'}</td>
+                                      <td className="border border-black px-1.5 py-1 font-medium">{res.h_max || '-'}</td>
+                                    </tr>
+                                    {/* Dòng Trường hợp Thiết kế */}
+                                    <tr className="text-center">
+                                      <td className="border border-black px-1.5 py-1 text-left font-medium">Thiết kế</td>
+                                      <td className="border border-black px-1.5 py-1 font-semibold">{formatNum(q_des, 2)}</td>
+                                      <td className="border border-black px-1.5 py-1 font-medium">{res.v_des || '-'}</td>
+                                      <td className="border border-black px-1.5 py-1 font-medium">{res.h_des || '-'}</td>
+                                    </tr>
+                                    {/* Dòng Trường hợp Nhỏ nhất */}
+                                    <tr className="text-center">
+                                      <td className="border border-black px-1.5 py-1 text-left font-medium">Nhỏ nhất</td>
+                                      <td className="border border-black px-1.5 py-1 font-semibold">{formatNum(q_min, 2)}</td>
+                                      <td className="border border-black px-1.5 py-1 font-medium">{res.v_min || '-'}</td>
+                                      <td className="border border-black px-1.5 py-1 font-medium">{res.h_min || '-'}</td>
+                                    </tr>
+                                  </React.Fragment>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <h4 className="font-bold text-base mb-2 mt-4">2.4. Thiết kế đường mực nước trong kênh</h4>
+                        <p className="mb-4 text-justify indent-8">
+                          Thiết kế đường mực nước trong kênh chính {project?.name || 'Giữa'} được tính toán trên cơ sở cao độ khống chế mực nước yêu cầu tại các vị trí công trình và kênh nhánh, kết hợp với tổn thất cột nước (ma sát dọc đường và cục bộ qua công trình) trên từng phân đoạn kênh. Kết quả tính toán đường mực nước được tổng hợp chi tiết trong bảng dưới đây:
+                        </p>
+
+                        <div className="text-center font-bold my-3 text-[13pt] font-['Times_New_Roman']">
+                          Bảng 17. Kết quả tính toán đường mực nước kênh chính {project?.name || 'Giữa'}
+                        </div>
+
+                        <div className="my-4 overflow-x-auto">
+                          <table className="w-full text-[11pt] border-collapse border border-black font-['Times_New_Roman']">
+                            <thead>
+                              <tr className="bg-slate-50 text-center font-bold">
+                                <th rowSpan={2} className="border border-black px-1.5 py-2 align-middle">Tên cọc</th>
+                                <th rowSpan={2} className="border border-black px-1.5 py-2 align-middle w-40">Công trình</th>
+                                <th rowSpan={2} className="border border-black px-1.5 py-2 align-middle">Lý trình (m)</th>
+                                <th colSpan={2} className="border border-black px-1.5 py-1">Tổn thất (m)</th>
+                                <th colSpan={5} className="border border-black px-1.5 py-1">Cao độ (m)</th>
+                              </tr>
+                              <tr className="bg-slate-50 text-center font-bold">
+                                <th className="border border-black px-1.5 py-1">Ma sát</th>
+                                <th className="border border-black px-1.5 py-1">Cục bộ</th>
+                                <th className="border border-black px-1.5 py-1">Mặt đất</th>
+                                <th className="border border-black px-1.5 py-1">Đáy kênh</th>
+                                <th className="border border-black px-1.5 py-1">Htk</th>
+                                <th className="border border-black px-1.5 py-1">Đỉnh kênh</th>
+                                <th className="border border-black px-1.5 py-1">Yêu cầu</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {computedSegments.length > 0 ? (
+                                computedSegments.map((seg, segIdx) => {
+                                  const res = segmentHydraulicResults[segIdx];
+                                  const isDesigned = res !== undefined;
+                                  const startNode = flowNodesData.flowNodes[seg.startIdx];
+                                  const endNodeIdx = seg.endIdx !== null && seg.endIdx < flowNodesData.flowNodes.length ? seg.endIdx : flowNodesData.flowNodes.length - 1;
+                                  const endNode = flowNodesData.flowNodes[endNodeIdx];
+
+                                  const startViTri = formatChainageToK(startNode.chainage || 0);
+                                  const endViTri = formatChainageToK(endNode?.chainage || 0);
+                                  const chieuDaiRaw = (endNode?.chainage || 0) - (startNode.chainage || 0);
+                                  const chieuDai = chieuDaiRaw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                                  const q_val = formatNum(startNode.q_sau, 2);
+                                  const i_str = isDesigned ? (res?.i || '0.0003') : '-';
+                                  const m_str = isDesigned ? (res?.m || '0') : '-';
+                                  const n_str = isDesigned ? (res?.n || '0.017') : '-';
+                                  const b_str = isDesigned ? (res?.b_out || '-') : '-';
+
+                                  const segmentHeaderRow = (
+                                    <tr key={`header-${segIdx}`} className="bg-slate-100 font-bold">
+                                      <td colSpan={10} className="border border-black px-2 py-1.5 text-left text-slate-800 text-[11pt]">
+                                        Đoạn {segIdx + 1} (Từ {startViTri} đến {endViTri}, L = {chieuDai}m, Qtk = {q_val} m³/s{isDesigned ? `, i = ${i_str}, m = ${m_str}, n = ${n_str}, b = ${b_str}m` : ''})
+                                      </td>
+                                    </tr>
+                                  );
+
+                                  const nodeElements = [];
+                                  for (let index = seg.startIdx; index <= endNodeIdx; index++) {
+                                    const node = flowNodesData.flowNodes[index];
+                                    let viTri = formatChainageToK(node.chainage || 0);
+                                    let congTrinh = '';
+                                    if (node.type === 'dau') {
+                                      congTrinh = 'Đầu kênh';
+                                    } else if (node.type === 'cuoi') {
+                                      congTrinh = 'Cuối kênh';
+                                    } else if (node.type === 'inline_structure' || node.type === 'inline_structure_start' || node.type === 'inline_structure_end') {
+                                      congTrinh = node.name || 'Công trình';
+                                    } else {
+                                      congTrinh = node.name || 'Kênh nhánh';
+                                    }
+
+                                    let chainageDisplay = Number(node.chainage).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+
+                                    const dayVal = nodeElevations[segIdx]?.[index];
+                                    const dayStr = dayVal !== null && dayVal !== undefined ? dayVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '') : '-';
+                                    const htkStr = dayVal !== null && dayVal !== undefined && isDesigned && res.h_des ? (dayVal + Number(res.h_des)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '') : '-';
+
+                                    let safeHeightVal = 0;
+                                    if (res && res.safeHeight) {
+                                      safeHeightVal = Number(String(res.safeHeight).replace(',', '.'));
+                                      if (isNaN(safeHeightVal)) safeHeightVal = 0;
+                                    } else {
+                                      safeHeightVal = Number(calculateSafeHeight(startNode.q_sau, res?.crossSectionType as any)) || 0;
+                                    }
+
+                                    const h_max_val = !isNaN(Number(res?.h_max)) ? Number(res?.h_max) : 0;
+                                    const dinhKenhStr = dayVal !== null && dayVal !== undefined && isDesigned ? (dayVal + h_max_val + safeHeightVal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '') : '-';
+
+                                    const yeuCauStr = node.type === 'branch' && node.reqWaterLevel ? node.reqWaterLevel.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '') : '-';
+
+                                    // Find terrain elevation for this chainage
+                                    let terrainElevationStr = '-';
+                                    if (terrainData && terrainData.length > 0) {
+                                      const chainage = node.chainage || 0;
+                                      const exactMatch = terrainData.find(t => Math.abs(Number(t.lyTrinh) - chainage) < 0.1);
+                                      if (exactMatch) {
+                                        terrainElevationStr = Number(exactMatch.caoDo).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                                      } else {
+                                        const sortedData = [...terrainData].sort((a, b) => Number(a.lyTrinh) - Number(b.lyTrinh));
+                                        let prev = null;
+                                        let next = null;
+                                        for (let i = 0; i < sortedData.length; i++) {
+                                          const tChainage = Number(sortedData[i].lyTrinh);
+                                          if (tChainage <= chainage) prev = sortedData[i];
+                                          if (tChainage >= chainage && !next) next = sortedData[i];
+                                        }
+                                        if (prev && next && Number(prev.lyTrinh) !== Number(next.lyTrinh)) {
+                                          const lyTrinhPrev = Number(prev.lyTrinh);
+                                          const lyTrinhNext = Number(next.lyTrinh);
+                                          const caoDoPrev = Number(prev.caoDo);
+                                          const caoDoNext = Number(next.caoDo);
+                                          const ratio = (chainage - lyTrinhPrev) / (lyTrinhNext - lyTrinhPrev);
+                                          const interpolated = caoDoPrev + ratio * (caoDoNext - caoDoPrev);
+                                          terrainElevationStr = interpolated.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                                        } else if (prev) {
+                                          terrainElevationStr = Number(prev.caoDo).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                                        } else if (next) {
+                                          terrainElevationStr = Number(next.caoDo).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                                        }
+                                      }
+                                    }
+
+                                    const isFirstNode = segIdx === 0 && index === 0;
+
+                                    const dataRow = (
+                                      <tr key={`data-${segIdx}-${index}`} className="text-center">
+                                        <td className="border border-black px-1.5 py-1">{viTri}</td>
+                                        <td className="border border-black px-1.5 py-1 text-left">{congTrinh}</td>
+                                        <td className="border border-black px-1.5 py-1">{chainageDisplay}</td>
+                                        <td className="border border-black px-1.5 py-1 text-slate-400">-</td>
+                                        <td className="border border-black px-1.5 py-1">{(node.headLoss || 0) > 0 ? Number(node.headLoss).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                                        <td className="border border-black px-1.5 py-1">{terrainElevationStr}</td>
+                                        <td className="border border-black px-1.5 py-1">{dayStr}</td>
+                                        <td className="border border-black px-1.5 py-1 font-bold text-blue-700">{htkStr}</td>
+                                        <td className="border border-black px-1.5 py-1">{dinhKenhStr}</td>
+                                        <td className="border border-black px-1.5 py-1 text-red-700 font-medium">{yeuCauStr}</td>
+                                      </tr>
+                                    );
+
+                                    nodeElements.push(dataRow);
+
+                                    if (index < endNodeIdx) {
+                                      let hFriction = '-';
+                                      if (isDesigned) {
+                                        const nextNode = flowNodesData.flowNodes[index + 1];
+                                        const L = (nextNode.chainage || 0) - (node.chainage || 0);
+                                        const i_val = Number(res?.i || 0.0003);
+                                        hFriction = (L * i_val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\.00$/, '');
+                                      }
+
+                                      nodeElements.push(
+                                        <tr key={`empty-${segIdx}-${index}`} className="text-center italic bg-slate-50/10">
+                                          {Array.from({ length: 10 }).map((_, i) => (
+                                            <td key={`empty-cell-${segIdx}-${index}-${i}`} className="border border-black px-1.5 py-0.5 text-[10pt]">
+                                              {i === 3 ? hFriction : ""}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      );
+                                    }
+                                  }
+
+                                  return (
+                                    <React.Fragment key={`segment-${segIdx}`}>
+                                      {segmentHeaderRow}
+                                      {nodeElements}
+                                    </React.Fragment>
+                                  );
+                                })
+                              ) : (
+                                <tr>
+                                  <td colSpan={10} className="border border-black px-4 py-8 text-center text-slate-400 italic">
+                                    Chưa có dữ liệu
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <h4 className="font-bold text-base mb-2 mt-4">2.5. Kiểm tra khả năng tưới tự chảy</h4>
+                        <p className="mb-4 text-justify indent-8 text-slate-400">
+                          [Nhập nội dung tính toán tại đây]
+                        </p>
+
+                        <h3 className="font-bold text-lg mb-2 mt-6 uppercase">3. CÁC CÔNG TRÌNH TRÊN KÊNH</h3>
+                        <h4 className="font-bold text-base mb-2 mt-4">3.1. Xác định chiều rộng các tràn xả thừa</h4>
+                        <p className="mb-4 text-justify indent-8 text-slate-400">
+                          [Nhập nội dung tính toán tại đây]
+                        </p>
+
+                        <h4 className="font-bold text-base mb-2 mt-4">3.2. Xác định kích thước cống lấy nước đầu kênh</h4>
+                        <p className="mb-4 text-justify indent-8 text-slate-400">
+                          [Nhập nội dung tính toán tại đây]
+                        </p>
+
+                        <h4 className="font-bold text-base mb-2 mt-4">3.3. Xác định lưu lượng và mực nước qua khe hẹp dưới cầu máng</h4>
+                        <p className="mb-4 text-justify indent-8 text-slate-400">
+                          [Nhập nội dung tính toán tại đây]
+                        </p>
+                      </div>
+                      ) : (
+                        <div
+                          className="bg-white shadow-md border border-slate-200 outline-none pt-[20mm] pr-[20mm] pb-[20mm] pl-[25mm] text-[14pt] leading-relaxed font-['Times_New_Roman'] w-[794px] min-h-[1123px] shrink-0"
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                        >
+                          <h3 className="font-bold text-lg mb-2 uppercase">PHẦN I: BẢNG TỔNG HỢP KHỐI LƯỢNG MẶT CẮT NGANG KÊNH CHÍNH</h3>
+                          <p className="mb-4 text-justify indent-8">
+                            Khối lượng đào đắp mặt cắt ngang của tuyến kênh chính {project?.name || 'Giữa'} được xác định từ các trắc ngang tự nhiên và mặt cắt thiết kế tương ứng của từng cọc. Dưới đây là bảng tổng hợp khối lượng chi tiết cho toàn tuyến:
+                          </p>
+
+                          <div className="text-center font-bold my-3 text-[13pt] font-['Times_New_Roman']">
+                            Bảng 18. Bảng tổng hợp khối lượng đào đắp mặt cắt ngang
+                          </div>
+
+                          <div className="my-4 overflow-x-auto">
+                            <table className="w-full text-[10pt] border-collapse border border-black font-['Times_New_Roman']">
+                              <thead>
+                                <tr className="bg-slate-50 text-center font-bold">
+                                  <th rowSpan={2} className="border border-black px-1 py-1 w-10">STT</th>
+                                  <th rowSpan={2} className="border border-black px-1 py-1">Tên cọc</th>
+                                  <th rowSpan={2} className="border border-black px-1 py-1 w-20">Lý trình (m)</th>
+                                  <th rowSpan={2} className="border border-black px-1 py-1 w-20">Khoảng cách (m)</th>
+                                  <th colSpan={4} className="border border-black px-1 py-1">Diện tích mặt cắt (m²)</th>
+                                  <th colSpan={4} className="border border-black px-1 py-1">Khối lượng (m³ / m²)</th>
+                                </tr>
+                                <tr className="bg-slate-50 text-center font-bold">
+                                  <th className="border border-black px-1 py-1 w-16">S đào</th>
+                                  <th className="border border-black px-1 py-1 w-16">S đắp</th>
+                                  <th className="border border-black px-1 py-1 w-16">S bóc TM</th>
+                                  <th className="border border-black px-1 py-1 w-16">L cỏ</th>
+                                  <th className="border border-black px-1 py-1 w-16">V đào</th>
+                                  <th className="border border-black px-1 py-1 w-16">V đắp</th>
+                                  <th className="border border-black px-1 py-1 w-16">V bóc TM</th>
+                                  <th className="border border-black px-1 py-1 w-16">S cỏ</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(() => {
+                                  if (!terrainStakes || terrainStakes.length === 0) {
+                                    return (
+                                      <tr>
+                                        <td colSpan={12} className="border border-black px-4 py-8 text-center text-slate-400 italic">
+                                          Chưa có dữ liệu trắc ngang
+                                        </td>
+                                      </tr>
+                                    );
+                                  }
+
+                                  // Pre-calculate all stake geometries
+                                  const stakeGeometries = terrainStakes.map((stake) => {
+                                    const geom = calculateCrossSectionGeometry(
+                                      stake,
+                                      computedSegments,
+                                      segmentHydraulicResults,
+                                      flowNodesData.flowNodes,
+                                      nodeElevations,
+                                      crossSectionParams
+                                    );
+                                    return {
+                                      name: stake.name,
+                                      chainage: stake.chainage,
+                                      S_dao: geom.S_dao_trang || 0,
+                                      S_dap: geom.S_dap || 0,
+                                      S_boc: geom.S_boc_thao_moc || 0,
+                                      L_co: geom.L_trong_co || 0,
+                                    };
+                                  });
+
+                                  let totalV_dao = 0;
+                                  let totalV_dap = 0;
+                                  let totalV_boc = 0;
+                                  let totalS_co = 0;
+                                  let totalDist = 0;
+
+                                  const rows = stakeGeometries.map((curr, idx) => {
+                                    let dist = 0;
+                                    let V_dao = 0;
+                                    let V_dap = 0;
+                                    let V_boc = 0;
+                                    let S_co = 0;
+
+                                    if (idx > 0) {
+                                      const prev = stakeGeometries[idx - 1];
+                                      dist = curr.chainage - prev.chainage;
+                                      if (dist < 0) dist = 0;
+
+                                      V_dao = ((curr.S_dao + prev.S_dao) / 2) * dist;
+                                      V_dap = ((curr.S_dap + prev.S_dap) / 2) * dist;
+                                      V_boc = ((curr.S_boc + prev.S_boc) / 2) * dist;
+                                      S_co = ((curr.L_co + prev.L_co) / 2) * dist;
+
+                                      totalV_dao += V_dao;
+                                      totalV_dap += V_dap;
+                                      totalV_boc += V_boc;
+                                      totalS_co += S_co;
+                                      totalDist += dist;
+                                    }
+
+                                    return (
+                                      <tr key={idx} className="text-center">
+                                        <td className="border border-black px-1 py-1">{idx + 1}</td>
+                                        <td className="border border-black px-1 py-1 font-semibold">{curr.name}</td>
+                                        <td className="border border-black px-1 py-1">{curr.chainage.toFixed(2)}</td>
+                                        <td className="border border-black px-1 py-1">{idx === 0 ? '-' : dist.toFixed(2)}</td>
+                                        
+                                        {/* Areas */}
+                                        <td className="border border-black px-1 py-1 text-slate-800">{curr.S_dao.toFixed(2)}</td>
+                                        <td className="border border-black px-1 py-1 text-slate-800">{curr.S_dap.toFixed(2)}</td>
+                                        <td className="border border-black px-1 py-1 text-slate-600">{curr.S_boc.toFixed(2)}</td>
+                                        <td className="border border-black px-1 py-1 text-slate-600">{curr.L_co.toFixed(2)}</td>
+                                        
+                                        {/* Volumes */}
+                                        <td className="border border-black px-1 py-1 font-medium text-blue-900">{idx === 0 ? '-' : V_dao.toFixed(2)}</td>
+                                        <td className="border border-black px-1 py-1 font-medium text-blue-900">{idx === 0 ? '-' : V_dap.toFixed(2)}</td>
+                                        <td className="border border-black px-1 py-1 text-slate-700">{idx === 0 ? '-' : V_boc.toFixed(2)}</td>
+                                        <td className="border border-black px-1 py-1 text-slate-700">{idx === 0 ? '-' : S_co.toFixed(2)}</td>
+                                      </tr>
+                                    );
+                                  });
+
+                                  // Add the total row
+                                  rows.push(
+                                    <tr key="total" className="text-center font-bold bg-slate-50">
+                                      <td colSpan={3} className="border border-black px-1 py-1.5 text-right uppercase">Tổng cộng:</td>
+                                      <td className="border border-black px-1 py-1.5">{totalDist.toFixed(2)}</td>
+                                      <td colSpan={4} className="border border-black px-1 py-1.5 bg-slate-100/50"></td>
+                                      <td className="border border-black px-1 py-1.5 text-blue-900">{totalV_dao.toFixed(2)}</td>
+                                      <td className="border border-black px-1 py-1.5 text-blue-900">{totalV_dap.toFixed(2)}</td>
+                                      <td className="border border-black px-1 py-1.5 text-slate-700">{totalV_boc.toFixed(2)}</td>
+                                      <td className="border border-black px-1 py-1.5 text-slate-700">{totalS_co.toFixed(2)}</td>
+                                    </tr>
+                                  );
+
+                                  return rows;
+                                })()}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
