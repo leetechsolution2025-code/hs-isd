@@ -3684,13 +3684,13 @@ export default function DesignFullscreenModal({ isOpen, onClose, project, onSucc
                           contentEditable={true}
                           suppressContentEditableWarning={true}
                         >
-                          <h3 className="font-bold text-lg mb-2 uppercase">PHẦN I: BẢNG TỔNG HỢP KHỐI LƯỢNG MẶT CẮT NGANG KÊNH CHÍNH</h3>
+                          <h3 className="font-bold text-lg mb-2 uppercase">1. BẢNG TỔNG HỢP KHỐI LƯỢNG</h3>
                           <p className="mb-4 text-justify indent-8">
                             Khối lượng đào đắp mặt cắt ngang của tuyến kênh chính {project?.name || 'Giữa'} được xác định từ các trắc ngang tự nhiên và mặt cắt thiết kế tương ứng của từng cọc. Dưới đây là bảng tổng hợp khối lượng chi tiết cho toàn tuyến:
                           </p>
 
                           <div className="text-center font-bold my-3 text-[13pt] font-['Times_New_Roman']">
-                            Bảng 18. Bảng tổng hợp khối lượng đào đắp mặt cắt ngang
+                            Bảng 1. Khối lượng các mặt cắt ngang
                           </div>
 
                           <div className="my-4 overflow-x-auto">
