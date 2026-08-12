@@ -118,6 +118,28 @@ export default function CrossSectionDesignWorkspace({
   const bankCutOption = segParams.bankCutOption || 'dap_bo';
   const coRanhThoatNuocMai = segParams.coRanhThoatNuocMai || false;
 
+  // Call geometry helper for the selected stake to know isLeftCut/isRightCut
+  let isLeftCut = false;
+  let isRightCut = false;
+  if (terrainStakes && terrainStakes[selectedStakeIdx]) {
+    const selectedStake = terrainStakes[selectedStakeIdx];
+    try {
+      const geom = calculateCrossSectionGeometry(
+        selectedStake,
+        computedSegments,
+        segmentHydraulicResults,
+        flowNodes,
+        nodeElevations,
+        crossSectionParams
+      );
+      isLeftCut = geom.isLeftCut;
+      isRightCut = geom.isRightCut;
+    } catch (e) {
+      // Fallback if geometry calc fails
+    }
+  }
+  const hasCutSide = isLeftCut || isRightCut;
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -320,14 +342,19 @@ export default function CrossSectionDesignWorkspace({
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 space-y-3">
-                  <h4 className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Cấu hình mái dốc & Rãnh biên</h4>
+                  <h4 className={`text-[12px] font-bold uppercase tracking-wider ${!hasCutSide ? 'text-slate-300' : 'text-slate-400'}`}>
+                    Cấu hình mái dốc & Rãnh biên
+                  </h4>
                   
                   <div className="space-y-1">
-                    <span className="text-xs font-medium text-slate-600">Mái dốc bên Đào</span>
+                    <span className={`text-xs font-medium ${!hasCutSide ? 'text-slate-400' : 'text-slate-600'}`}>Mái dốc bên Đào</span>
                     <select
+                      disabled={!hasCutSide}
                       value={bankCutOption}
                       onChange={(e) => handleParamChange('bankCutOption', e.target.value)}
-                      className="w-full text-xs border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-500 bg-white"
+                      className={`w-full text-xs border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-500 bg-white ${
+                        !hasCutSide ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer'
+                      }`}
                     >
                       <option value="dap_bo">Đắp bờ dốc xuống (mặc định)</option>
                       <option value="mo_rong_bo">Mở rộng thềm bờ nằm ngang</option>
@@ -336,16 +363,25 @@ export default function CrossSectionDesignWorkspace({
 
                   {bankCutOption === 'mo_rong_bo' && (
                     <div className="flex items-center justify-between py-1">
-                      <span className="text-xs font-medium text-slate-700">Có rãnh thoát nước mái (rãnh biên)</span>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                      <span className={`text-xs font-medium ${!hasCutSide ? 'text-slate-400' : 'text-slate-700'}`}>
+                        Có rãnh thoát nước mái (rãnh biên)
+                      </span>
+                      <label className={`relative inline-flex items-center ${!hasCutSide ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                         <input
                           type="checkbox"
+                          disabled={!hasCutSide}
                           className="sr-only peer"
                           checked={coRanhThoatNuocMai}
                           onChange={(e) => handleParamChange('coRanhThoatNuocMai', e.target.checked)}
                         />
                         <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
+                    </div>
+                  )}
+
+                  {!hasCutSide && (
+                    <div className="text-[11px] text-slate-400 mt-1 italic leading-snug">
+                      *(Chỉ khả dụng đối với mặt cắt có bờ bên Đào)
                     </div>
                   )}
                 </div>
