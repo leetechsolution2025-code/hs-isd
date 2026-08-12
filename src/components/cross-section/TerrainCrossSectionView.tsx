@@ -787,7 +787,7 @@ export default function TerrainCrossSectionView({
         const ditchInnerBotR = { x: ditchInnerTopR.x, y: ditchInnerTopR.y - hDitch };
         const ditchInnerBotL = { x: ditchInnerTopL.x, y: ditchInnerTopL.y - hDitch };
 
-        ditchPolys = `${ditchTopR.x},${ditchTopR.y} ${ditchOuterBotR.x},${ditchOuterBotR.y} ${ditchOuterBotL.x},${ditchOuterBotL.y} ${ditchTopL.x},${ditchTopL.y} ${ditchInnerTopL.x},${ditchInnerTopL.y} ${ditchInnerBotL.x},${ditchInnerBotL.y} ${ditchInnerBotRight.x},${ditchInnerBotRight.y} ${ditchInnerTopR.x},${ditchInnerTopR.y}`;
+        ditchPolys = `${ditchTopR.x},${ditchTopR.y} ${ditchOuterBotR.x},${ditchOuterBotR.y} ${ditchOuterBotL.x},${ditchOuterBotL.y} ${ditchTopL.x},${ditchTopL.y} ${ditchInnerTopL.x},${ditchInnerTopL.y} ${ditchInnerBotL.x},${ditchInnerBotL.y} ${ditchInnerBotR.x},${ditchInnerBotR.y} ${ditchInnerTopR.x},${ditchInnerTopR.y}`;
       } else {
         const ditchTopRight = { x: bankOuterLeft.x, y: bankOuterLeft.y };
         ditchTopLeft = { x: ditchTopRight.x - (bDitch + 2 * tDitch), y: ditchTopRight.y };
@@ -821,7 +821,7 @@ export default function TerrainCrossSectionView({
         const ditchInnerBotR = { x: ditchInnerTopR.x, y: ditchInnerTopR.y - hDitch };
         const ditchInnerBotL = { x: ditchInnerTopL.x, y: ditchInnerTopL.y - hDitch };
 
-        ditchPolysRight = `${ditchTopR.x},${ditchTopR.y} ${ditchOuterBotR.x},${ditchOuterBotR.y} ${ditchOuterBotL.x},${ditchOuterBotL.y} ${ditchTopL.x},${ditchTopL.y} ${ditchInnerTopL.x},${ditchInnerTopL.y} ${ditchInnerBotL.x},${ditchInnerBotL.y} ${ditchInnerBotRight.x},${ditchInnerBotRight.y} ${ditchInnerTopR.x},${ditchInnerTopR.y}`;
+        ditchPolysRight = `${ditchTopR.x},${ditchTopR.y} ${ditchOuterBotR.x},${ditchOuterBotR.y} ${ditchOuterBotL.x},${ditchOuterBotL.y} ${ditchTopL.x},${ditchTopL.y} ${ditchInnerTopL.x},${ditchInnerTopL.y} ${ditchInnerBotL.x},${ditchInnerBotL.y} ${ditchInnerBotR.x},${ditchInnerBotR.y} ${ditchInnerTopR.x},${ditchInnerTopR.y}`;
       } else {
         const ditchTopLeftRight = { x: bankOuterRight.x, y: bankOuterRight.y };
         ditchTopRightRight = { x: ditchTopLeftRight.x + (bDitch + 2 * tDitch), y: ditchTopLeftRight.y };
