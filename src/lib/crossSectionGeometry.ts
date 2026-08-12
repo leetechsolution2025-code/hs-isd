@@ -29,6 +29,11 @@ export interface CrossSectionGeometryResult {
   H_total: number;
   params: any;
   
+  // New flags
+  coTamNap: boolean;
+  chieuDayTamNap: number;
+  coKenhNgam: boolean;
+
   // Key points
   p1: Point2D;
   p2: Point2D;
@@ -53,6 +58,13 @@ export interface CrossSectionGeometryResult {
   dlotRightTop: Point2D;
   dlotLeftBottom: Point2D;
   dlotRightBottom: Point2D;
+
+  // Cover plate points (optional)
+  tamNapLeftBottom?: Point2D;
+  tamNapRightBottom?: Point2D;
+  tamNapRightTop?: Point2D;
+  tamNapLeftTop?: Point2D;
+  S_tam_nap?: number;
   
   bankElevLeft: number;
   bankElevRight: number;
@@ -102,6 +114,7 @@ export interface CrossSectionGeometryResult {
   S_boc_thao_moc: number;
   S_dap: number;
   L_trong_co: number;
+  strippedLines?: Point2D[][];
 }
 
 export function calculateCrossSectionGeometry(
@@ -166,11 +179,16 @@ export function calculateCrossSectionGeometry(
     BT_trai: 1.5, BT_phai: 1.5, MDAO1: 1.5, MDAO2: 1.0, MDAP: 1.75,
     bankCutOption: 'dap_bo', coRanhThoatNuocMai: false,
     coRanhThoatNuoc: false, DTN: 0.4, BTN: 0.4, HTN: 0.4, coTrongCo: false,
-    coNgamMong: false, coBocThaoMoc: true, dayBocThaoMoc: 0.2
+    coNgamMong: false, coBocThaoMoc: true, dayBocThaoMoc: 0.2,
+    coTamNap: false, chieuDayTamNap: 0.1, coKenhNgam: false
   };
   const segParam = crossSectionParams?.[selectedSegmentIdx] || {};
   const localParams = stakeParams?.[stake.name] || {};
   const params = { ...defaultParams, ...segParam, ...localParams };
+
+  const coKenhNgam = !!params.coKenhNgam;
+  const coTamNap = coKenhNgam || !!params.coTamNap;
+  const chieuDayTamNap = Number(params.chieuDayTamNap) || 0.1;
 
   const _bOut = parseFloat(selectedHydraulics.b_out);
   const _b = parseFloat(selectedHydraulics.b);
@@ -233,10 +251,17 @@ export function calculateCrossSectionGeometry(
   const pDLOT = Number(params.DLOT) || 0.1;
   const dlotLeftTop = { x: concLeftBottom.x, y: concLeftBottom.y };
   const dlotRightTop = { x: concRightBottom.x, y: concRightBottom.y };
-  const dlotLeftBottom = { x: dlotLeftTop.x - trenchExt, y: dlotLeftTop.y - pDLOT };
-  const dlotRightBottom = { x: dlotRightTop.x + trenchExt, y: dlotRightTop.y - pDLOT };
+  const dlotLeftBottom = { x: dlotLeftTop.x, y: dlotLeftTop.y - pDLOT };
+  const dlotRightBottom = { x: dlotRightTop.x, y: dlotRightTop.y - pDLOT };
 
-  const pDBO = Number(params.DBO) || 0.3;
+  // Cover plate coordinates
+  const tamNapLeftBottom = outerLeftTop;
+  const tamNapRightBottom = outerRightTop;
+  const tamNapRightTop = { x: outerRightTop.x, y: outerRightTop.y + chieuDayTamNap };
+  const tamNapLeftTop = { x: outerLeftTop.x, y: outerLeftTop.y + chieuDayTamNap };
+  const S_tam_nap = coTamNap ? (outerRightTop.x - outerLeftTop.x) * chieuDayTamNap : 0;
+
+  const pDBO = coKenhNgam ? 0 : (Number(params.DBO) || 0.3);
   const bankElevLeft = p0.y - pDBO;
   const bankElevRight = p3.y - pDBO;
 
@@ -245,8 +270,8 @@ export function calculateCrossSectionGeometry(
   const outerWallRightSlope = (outerRightTop.x - outerRightBottom.x) / (outerRightTop.y - outerRightBottom.y || 0.001);
   const bankInnerRight = { x: outerRightBottom.x + (bankElevRight - outerRightBottom.y) * outerWallRightSlope, y: bankElevRight };
 
-  const pBT_trai = Number(params.BT_trai) || 1.5;
-  const pBT_phai = Number(params.BT_phai) || 1.5;
+  const pBT_trai = coKenhNgam ? 0 : (Number(params.BT_trai) || 1.5);
+  const pBT_phai = coKenhNgam ? 0 : (Number(params.BT_phai) || 1.5);
   const bankOuterLeft = { x: bankInnerLeft.x - pBT_trai, y: bankElevLeft };
   const bankOuterRight = { x: bankInnerRight.x + pBT_phai, y: bankElevRight };
 
@@ -379,29 +404,41 @@ export function calculateCrossSectionGeometry(
   // Trench tops
   const x_trench_left_top = dlotLeftBottom.x - (bankElevLeft - dlotLeftBottom.y) * pMDAO1;
   const test_bank_x_l = Math.min(bankOuterLeft.x, x_trench_left_top);
-  const isLeftCut = (getTerrainElev(test_bank_x_l) > bankElevLeft);
+  const isLeftCut = coKenhNgam || (getTerrainElev(test_bank_x_l) > bankElevLeft);
 
   const x_trench_right_top = dlotRightBottom.x + (bankElevRight - dlotRightBottom.y) * pMDAO1;
   const test_bank_x_r = Math.max(bankOuterRight.x, x_trench_right_top);
-  const isRightCut = (getTerrainElev(test_bank_x_r) > bankElevRight);
+  const isRightCut = coKenhNgam || (getTerrainElev(test_bank_x_r) > bankElevRight);
 
   // CORRECTED EMBANKMENT SLOPE VECTOR DIRECTION:
   // Left embankment: moving LEFT (vx = -pMDAP) and DOWNWARDS (vy = -1)
   // Right embankment: moving RIGHT (vx = pMDAP) and DOWNWARDS (vy = -1)
-  const point5_terrain = findIntersection(bankOuterLeft, -pMDAP, -1);
-  const point6_terrain = findIntersection(bankOuterRight, pMDAP, -1);
+  const point5_terrain = coKenhNgam ? null : findIntersection(bankOuterLeft, -pMDAP, -1);
+  const point6_terrain = coKenhNgam ? null : findIntersection(bankOuterRight, pMDAP, -1);
 
-  const isFullFill = !isALowerThanTerrain && !isBLowerThanTerrain;
+  const isFullFill = !coKenhNgam && (!isALowerThanTerrain && !isBLowerThanTerrain);
 
   let point5: Point2D | null = null;
-  if (isLeftCut) {
-    if (params.bankCutOption === 'mo_rong_bo') {
-      if (isALowerThanTerrain && pMDAO1 > 0) {
-        const x5 = pointA.x - pMDAO1 * (bankElevLeft - pointA.y);
-        point5 = { x: x5, y: bankElevLeft };
+  if (!coKenhNgam) {
+    if (isLeftCut) {
+      if (params.bankCutOption === 'mo_rong_bo') {
+        if (isALowerThanTerrain && pMDAO1 > 0) {
+          const x5 = pointA.x - pMDAO1 * (bankElevLeft - pointA.y);
+          point5 = { x: x5, y: bankElevLeft };
+        }
+      } else {
+        // 'dap_bo'
+        if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
+          const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
+          const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
+          if (x5 > intersectA.x && y5 >= pointA.y && y5 <= bankOuterLeft.y) {
+            point5 = { x: x5, y: y5 };
+          }
+        }
       }
     } else {
-      // 'dap_bo'
+      // Fill section
+      point5 = point5_terrain;
       if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
         const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
         const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
@@ -410,43 +447,35 @@ export function calculateCrossSectionGeometry(
         }
       }
     }
-  } else {
-    // Fill section
-    point5 = point5_terrain;
-    if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
-      const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
-      const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
-      if (x5 > intersectA.x && y5 >= pointA.y && y5 <= bankOuterLeft.y) {
-        point5 = { x: x5, y: y5 };
-      }
-    }
   }
 
   let point6: Point2D | null = null;
-  if (isRightCut) {
-    if (params.bankCutOption === 'mo_rong_bo') {
-      if (isBLowerThanTerrain && pMDAO1 > 0) {
-        const x6 = pointB.x + pMDAO1 * (bankElevRight - pointB.y);
-        point6 = { x: x6, y: bankElevRight };
+  if (!coKenhNgam) {
+    if (isRightCut) {
+      if (params.bankCutOption === 'mo_rong_bo') {
+        if (isBLowerThanTerrain && pMDAO1 > 0) {
+          const x6 = pointB.x + pMDAO1 * (bankElevRight - pointB.y);
+          point6 = { x: x6, y: bankElevRight };
+        }
+      } else {
+        // 'dap_bo'
+        if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
+          const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
+          const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
+          if (x6 < intersectB.x && y6 >= pointB.y && y6 <= bankOuterRight.y) {
+            point6 = { x: x6, y: y6 };
+          }
+        }
       }
     } else {
-      // 'dap_bo'
+      // Fill section
+      point6 = point6_terrain;
       if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
         const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
         const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
         if (x6 < intersectB.x && y6 >= pointB.y && y6 <= bankOuterRight.y) {
           point6 = { x: x6, y: y6 };
         }
-      }
-    }
-  } else {
-    // Fill section
-    point6 = point6_terrain;
-    if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
-      const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
-      const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
-      if (x6 < intersectB.x && y6 >= pointB.y && y6 <= bankOuterRight.y) {
-        point6 = { x: x6, y: y6 };
       }
     }
   }
@@ -807,9 +836,21 @@ export function calculateCrossSectionGeometry(
       rightEmbankmentPoly.push(outerRightBottom);
     }
   }
-  const S_dap = useFullFill
-    ? calculatePolygonArea(fullEmbankmentPoly)
-    : calculatePolygonArea(leftEmbankmentPoly) + calculatePolygonArea(rightEmbankmentPoly);
+  let S_dap = 0;
+  if (coKenhNgam) {
+    const S_outer = calculatePolygonArea([
+      outerLeftTop, outerLeftBottom, concLeftTop, concLeftBottom,
+      concRightBottom, concRightTop, outerRightBottom, outerRightTop
+    ]);
+    const S_dlot = calculatePolygonArea([
+      dlotLeftTop, dlotRightTop, dlotRightBottom, dlotLeftBottom
+    ]);
+    S_dap = Math.max(0, S_dao_trang - S_outer - S_dlot - S_tam_nap);
+  } else {
+    S_dap = useFullFill
+      ? calculatePolygonArea(fullEmbankmentPoly)
+      : calculatePolygonArea(leftEmbankmentPoly) + calculatePolygonArea(rightEmbankmentPoly);
+  }
 
   const L_35 = (point5 && !(isLeftCut && params.bankCutOption === 'mo_rong_bo'))
     ? Math.sqrt(Math.pow(point5.x - bankOuterLeft.x, 2) + Math.pow(point5.y - bankOuterLeft.y, 2))
@@ -818,6 +859,53 @@ export function calculateCrossSectionGeometry(
     ? Math.sqrt(Math.pow(point6.x - bankOuterRight.x, 2) + Math.pow(point6.y - bankOuterRight.y, 2))
     : 0;
   const L_trong_co = params.coTrongCo ? L_35 + L_46 : 0;
+
+  const strippedLines: Point2D[][] = [];
+  if (params.coBocThaoMoc) {
+    if (useFullFill && point5 && point6 && point7 && point8) {
+      const pts: Point2D[] = [];
+      pts.push(point5);
+      pts.push(point7);
+      (stake.points || [])
+        .filter(p => p.offset > point7.x && p.offset < point8.x)
+        .forEach(p => pts.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+      pts.push(point8);
+      pts.push(point6);
+      strippedLines.push(pts);
+    } else {
+      const p5_ter = point5_terrain || point5;
+      if (p5_ter && point7) {
+        const p7 = { x: p5_ter.x + dayBocThaoMoc, y: p5_ter.y - dayBocThaoMoc };
+        const leftPts: Point2D[] = [];
+        leftPts.push(p5_ter);
+        leftPts.push(p7);
+        const endX = point9 ? point9.x : p5_ter.x;
+        (stake.points || [])
+          .filter(p => p.offset > p7.x && p.offset < endX)
+          .forEach(p => leftPts.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+        if (point9) {
+          leftPts.push(point9);
+        }
+        strippedLines.push(leftPts);
+      }
+      
+      const p6_ter = point6_terrain || point6;
+      if (p6_ter && point8) {
+        const p8 = { x: p6_ter.x - dayBocThaoMoc, y: p6_ter.y - dayBocThaoMoc };
+        const rightPts: Point2D[] = [];
+        if (point10) {
+          rightPts.push(point10);
+        }
+        const startX = point10 ? point10.x : p6_ter.x;
+        (stake.points || [])
+          .filter(p => p.offset > startX && p.offset < p8.x)
+          .forEach(p => rightPts.push({ x: p.offset, y: p.elevation - dayBocThaoMoc }));
+        rightPts.push(p8);
+        rightPts.push(p6_ter);
+        strippedLines.push(rightPts);
+      }
+    }
+  }
 
   return {
     dayKenhAtStake,
@@ -829,11 +917,16 @@ export function calculateCrossSectionGeometry(
     b,
     H_total,
     params,
+    coTamNap,
+    chieuDayTamNap,
+    coKenhNgam,
     p1, p2, p0, p3,
     p1_top, p1_right, p2_left, p2_top,
     outerLeftTop, outerRightTop, outerLeftBottom, outerRightBottom,
     concLeftTop, concRightTop, concLeftBottom, concRightBottom,
     dlotLeftTop, dlotRightTop, dlotLeftBottom, dlotRightBottom,
+    tamNapLeftBottom, tamNapRightBottom, tamNapRightTop, tamNapLeftTop,
+    S_tam_nap,
     bankElevLeft, bankElevRight,
     bankInnerLeft, bankInnerRight,
     bankOuterLeft, bankOuterRight,
@@ -858,6 +951,7 @@ export function calculateCrossSectionGeometry(
     S_dao_trang,
     S_boc_thao_moc,
     S_dap,
-    L_trong_co
+    L_trong_co,
+    strippedLines
   };
 }

@@ -112,11 +112,16 @@ export default function CrossSectionDesignWorkspace({
     const selectedStake = terrainStakes[selectedStakeIdx];
     if (!selectedStake) return;
 
+    let changes: Record<string, any> = { [key]: val };
+    if (key === 'coKenhNgam' && val === true) {
+      changes.coTamNap = true;
+    }
+
     const updated = {
       ...stakeParams,
       [selectedStake.name]: {
         ...(stakeParams[selectedStake.name] || {}),
-        [key]: val
+        ...changes
       }
     };
     setStakeParams(updated);
@@ -126,6 +131,9 @@ export default function CrossSectionDesignWorkspace({
   const localStakeParams = selectedStake ? (stakeParams[selectedStake.name] || {}) : {};
   const bankCutOption = localStakeParams.bankCutOption || 'dap_bo';
   const coRanhThoatNuocMai = localStakeParams.coRanhThoatNuocMai || false;
+  const coKenhNgam = !!localStakeParams.coKenhNgam;
+  const coTamNap = coKenhNgam || !!localStakeParams.coTamNap;
+  const chieuDayTamNap = localStakeParams.chieuDayTamNap !== undefined ? localStakeParams.chieuDayTamNap : 0.1;
 
   // Call geometry helper for the selected stake to know isLeftCut/isRightCut
   let isLeftCut = false;
@@ -393,6 +401,52 @@ export default function CrossSectionDesignWorkspace({
                   {!hasCutSide && (
                     <div className="text-[11px] text-slate-400 mt-1 italic leading-snug">
                       *(Chỉ khả dụng đối với mặt cắt có bờ bên Đào)
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 space-y-3">
+                  <h4 className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">
+                    Cấu tạo tấm nắp & Kênh ngầm
+                  </h4>
+
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-xs font-medium text-slate-700">Kênh ngầm (cống hộp)</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={coKenhNgam}
+                        onChange={(e) => handleParamChange('coKenhNgam', e.target.checked)}
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <span className={`text-xs font-medium text-slate-700 ${coKenhNgam ? 'opacity-50' : ''}`}>Có tấm nắp đậy</span>
+                    <label className={`relative inline-flex items-center ${coKenhNgam ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        disabled={coKenhNgam}
+                        className="sr-only peer"
+                        checked={coKenhNgam ? true : coTamNap}
+                        onChange={(e) => handleParamChange('coTamNap', e.target.checked)}
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+
+                  {(coKenhNgam || coTamNap) && (
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-xs font-medium text-slate-700">Chiều dày nắp (m)</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={chieuDayTamNap}
+                        onChange={(e) => handleParamChange('chieuDayTamNap', parseFloat(e.target.value) || 0)}
+                        className="w-20 text-xs border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-500 bg-white"
+                      />
                     </div>
                   )}
                 </div>
@@ -819,13 +873,13 @@ export default function CrossSectionDesignWorkspace({
                  geom.point6 && geom.point6_terrain && Math.abs(geom.point6.x - geom.point6_terrain.x) < 0.01 && (!geom.intersectB || geom.point6.x > geom.intersectB.x)
                );
 
-               const leftCutX = (hasLeftSolidTerrainFill && geom.point5_terrain)
+               const leftCutX = geom.coKenhNgam ? null : ((hasLeftSolidTerrainFill && geom.point5_terrain)
                  ? geom.point5_terrain.x
-                 : (geom.intersectA ? geom.intersectA.x : (geom.point5 ? geom.point5.x : null));
+                 : (geom.intersectA ? geom.intersectA.x : (geom.point5 ? geom.point5.x : null)));
 
-               const rightCutX = (hasRightSolidTerrainFill && geom.point6_terrain)
+               const rightCutX = geom.coKenhNgam ? null : ((hasRightSolidTerrainFill && geom.point6_terrain)
                  ? geom.point6_terrain.x
-                 : (geom.intersectB ? geom.intersectB.x : (geom.point6 ? geom.point6.x : null));
+                 : (geom.intersectB ? geom.intersectB.x : (geom.point6 ? geom.point6.x : null)));
 
               if (leftCutX !== null && rightCutX !== null && leftCutX < rightCutX) {
                 const leftCutElev = getTerrainElev(leftCutX);
@@ -860,6 +914,15 @@ export default function CrossSectionDesignWorkspace({
                 }
               }
 
+              // Organic Stripping Line (BocThaoMoc - Color 8)
+              if (geom.strippedLines && geom.strippedLines.length > 0) {
+                geom.strippedLines.forEach(linePts => {
+                  if (linePts.length > 1) {
+                    scr += `(drawpoly\n${makeLispList(linePts)}\n  "BocThaoMoc" 8 0 "BYLAYER"\n)\n`;
+                  }
+                });
+              }
+
               // 1. Tim Kenh Centerline Axis (Yellow/Color 2)
               scr += `(drawline (list ${mapX(geom.cx)} ${yRow2}) (list ${mapX(geom.cx)} ${mapY(geom.cy + geom.H_total + 2.5)}) "TimKenh" 2 "BYLAYER")\n`;
 
@@ -888,21 +951,31 @@ export default function CrossSectionDesignWorkspace({
                 scr += `(drawpoly\n${makeLispList(dlotPts.filter(Boolean))}\n  "BeTongLot" 1 1 "BYLAYER"\n)\n`;
               }
 
-              // 5. Embankment Slopes & Bank Tops (Yellow/Color 2)
-              if (geom.point5) {
-                const ptsList = [geom.point5, geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].filter(Boolean);
-                scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
-              } else {
-                const ptsList = [geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].filter(Boolean);
-                scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+              // Cover Plate (Green/Color 3)
+              if (geom.coTamNap && geom.tamNapLeftBottom && geom.tamNapRightBottom && geom.tamNapRightTop && geom.tamNapLeftTop) {
+                const tamNapPts = [
+                  geom.tamNapLeftBottom, geom.tamNapRightBottom, geom.tamNapRightTop, geom.tamNapLeftTop
+                ];
+                scr += `(drawpoly\n${makeLispList(tamNapPts.filter(Boolean))}\n  "MatKenh_BeTong" 3 1 "BYLAYER"\n)\n`;
               }
 
-              if (geom.point6) {
-                const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight, geom.point6].filter(Boolean);
-                scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
-              } else {
-                const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight].filter(Boolean);
-                scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+              // 5. Embankment Slopes & Bank Tops (Yellow/Color 2)
+              if (!geom.coKenhNgam) {
+                if (geom.point5) {
+                  const ptsList = [geom.point5, geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].filter(Boolean);
+                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+                } else {
+                  const ptsList = [geom.bankOuterLeft, geom.bankInnerLeft, geom.outerLeftTop].filter(Boolean);
+                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+                }
+
+                if (geom.point6) {
+                  const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight, geom.point6].filter(Boolean);
+                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+                } else {
+                  const ptsList = [geom.outerRightTop, geom.bankInnerRight, geom.bankOuterRight].filter(Boolean);
+                  scr += `(drawpoly\n${makeLispList(ptsList)}\n  "MaiDap" 2 0 "BYLAYER"\n)\n`;
+                }
               }
 
               // 6. Excavation Slopes (Magenta/Color 6)

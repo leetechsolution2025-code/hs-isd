@@ -53,7 +53,11 @@ export default function ParametricModule({
 
     vatLieuKenh: 'Bê tông cốt thép M250',
     vatLieuLot: 'Bê tông lót M100',
-    vatLieuRanh: 'Xây gạch mác 75'
+    vatLieuRanh: 'Xây gạch mác 75',
+
+    coTamNap: false,
+    chieuDayTamNap: 0.1,
+    coKenhNgam: false
   };
 
   const params = crossSectionParams[selectedSegmentIdx] || defaultParams;
@@ -70,13 +74,21 @@ export default function ParametricModule({
 
   const handleParamChange = (key: string, value: any, isNumber = true) => {
     if (setCrossSectionParams) {
-      setCrossSectionParams((prev: Record<number, any>) => ({
-        ...prev,
-        [selectedSegmentIdx]: {
-          ...(prev[selectedSegmentIdx] || defaultParams),
-          [key]: value
+      setCrossSectionParams((prev: Record<number, any>) => {
+        const current = prev[selectedSegmentIdx] || defaultParams;
+        const nextVal = isNumber ? Number(value) : value;
+        const updated = {
+          ...current,
+          [key]: nextVal
+        };
+        if (key === 'coKenhNgam' && nextVal === true) {
+          updated.coTamNap = true;
         }
-      }));
+        return {
+          ...prev,
+          [selectedSegmentIdx]: updated
+        };
+      });
     }
   };
 
@@ -145,9 +157,17 @@ export default function ParametricModule({
     const dlotLeftBottom = { x: dlotLeftTop.x, y: dlotLeftTop.y + params.DLOT * scale };
     const dlotRightBottom = { x: dlotRightTop.x, y: dlotRightTop.y + params.DLOT * scale };
 
+    const coKenhNgam = !!params.coKenhNgam;
+    const coTamNap = coKenhNgam || !!params.coTamNap;
+    const chieuDayTamNap = Number(params.chieuDayTamNap) || 0.1;
+
+    const pDBO = coKenhNgam ? 0 : params.DBO;
+    const pBT_trai = coKenhNgam ? 0 : params.BT_trai;
+    const pBT_phai = coKenhNgam ? 0 : params.BT_phai;
+
     // Banks (bờ kênh) - DBO is drop from top of canal to bank
-    const bankElevLeft = p0.y + params.DBO * scale;
-    const bankElevRight = p3.y + params.DBO * scale;
+    const bankElevLeft = p0.y + pDBO * scale;
+    const bankElevRight = p3.y + pDBO * scale;
 
     // Intersection of outer wall and bank (ensures straight wall)
     const outerWallLeftSlope = (outerLeftBottom.x - outerLeftTop.x) / (outerLeftBottom.y - outerLeftTop.y);
@@ -155,19 +175,21 @@ export default function ParametricModule({
     const outerWallRightSlope = (outerRightBottom.x - outerRightTop.x) / (outerRightBottom.y - outerRightTop.y);
     const bankInnerRight = { x: outerRightTop.x + (bankElevRight - outerRightTop.y) * outerWallRightSlope, y: bankElevRight };
 
-    const bankOuterLeft = { x: bankInnerLeft.x - params.BT_trai * scale, y: bankElevLeft };
-    const bankOuterRight = { x: bankInnerRight.x + params.BT_phai * scale, y: bankElevRight };
+    const bankOuterLeft = { x: bankInnerLeft.x - pBT_trai * scale, y: bankElevLeft };
+    const bankOuterRight = { x: bankInnerRight.x + pBT_phai * scale, y: bankElevRight };
 
     // Trench (Hố móng)
     // The trench bottom is at DLOT bottom elevation, and extends outwards by B3 from the wall.
     const trenchLeftBottom = { x: outerLeftBottom.x - trenchExt * scale, y: dlotLeftBottom.y };
     const trenchRightBottom = { x: outerRightBottom.x + trenchExt * scale, y: dlotRightBottom.y };
-    const trenchTopLeft = { x: trenchLeftBottom.x - (trenchLeftBottom.y - bankElevLeft) * params.MDAO1, y: bankElevLeft };
-    const trenchTopRight = { x: trenchRightBottom.x + (trenchRightBottom.y - bankElevRight) * params.MDAO1, y: bankElevRight };
+
+    const y_ground = coKenhNgam ? (outerLeftTop.y - (chieuDayTamNap + 0.5) * scale) : bankElevLeft;
+    const trenchTopLeft = { x: trenchLeftBottom.x - (trenchLeftBottom.y - y_ground) * params.MDAO1, y: y_ground };
+    const trenchTopRight = { x: trenchRightBottom.x + (trenchRightBottom.y - y_ground) * params.MDAO1, y: y_ground };
 
     // Excavation (Cut) / Fill (Mái đào đắp tự nhiên)
-    const cutLeft = { x: bankOuterLeft.x - 2 * params.MDAO2 * scale, y: bankOuterLeft.y - 2 * scale };
-    const fillRight = { x: bankOuterRight.x + 2 * params.MDAP * scale, y: bankOuterRight.y + 2 * scale };
+    const cutLeft = coKenhNgam ? { x: trenchTopLeft.x - 2 * scale, y: y_ground } : { x: bankOuterLeft.x - 2 * params.MDAO2 * scale, y: bankOuterLeft.y - 2 * scale };
+    const fillRight = coKenhNgam ? { x: trenchTopRight.x + 2 * scale, y: y_ground } : { x: bankOuterRight.x + 2 * params.MDAP * scale, y: bankOuterRight.y + 2 * scale };
 
     // Drainage ditch (Rãnh thoát nước) on the left cut slope
     let ditchSvg = null;
@@ -231,30 +253,41 @@ export default function ParametricModule({
         {/* Earthworks Layer */}
         <g stroke="#854d0e" strokeWidth="1.5" fill="none">
           {/* Surface */}
-          <polyline points={`${cutLeftFinal.x},${cutLeftFinal.y} ${params.coRanhThoatNuoc ? ditchTopLeft.x + ',' + ditchTopLeft.y : bankOuterLeft.x + ',' + bankOuterLeft.y} ${bankInnerLeft.x},${bankInnerLeft.y}`} />
-          <polyline points={`${bankInnerRight.x},${bankInnerRight.y} ${bankOuterRight.x},${bankOuterRight.y} ${fillRight.x},${fillRight.y}`} />
-          <line x1={bankOuterLeft.x} y1={bankOuterLeft.y} x2={bankInnerLeft.x} y2={bankInnerLeft.y} />
+          {/* Surface */}
+          {coKenhNgam ? (
+            <line x1={cutLeftFinal.x} y1={y_ground} x2={fillRight.x} y2={y_ground} />
+          ) : (
+            <>
+              <polyline points={`${cutLeftFinal.x},${cutLeftFinal.y} ${params.coRanhThoatNuoc ? ditchTopLeft.x + ',' + ditchTopLeft.y : bankOuterLeft.x + ',' + bankOuterLeft.y} ${bankInnerLeft.x},${bankInnerLeft.y}`} />
+              <polyline points={`${bankInnerRight.x},${bankInnerRight.y} ${bankOuterRight.x},${bankOuterRight.y} ${fillRight.x},${fillRight.y}`} />
+              <line x1={bankOuterLeft.x} y1={bankOuterLeft.y} x2={bankInnerLeft.x} y2={bankInnerLeft.y} />
+            </>
+          )}
           {ditchSvg}
 
           {/* Trench (Hố móng) */}
           <polyline points={`${trenchTopLeft.x},${trenchTopLeft.y} ${trenchLeftBottom.x},${trenchLeftBottom.y} ${dlotLeftBottom.x},${dlotLeftBottom.y} ${dlotRightBottom.x},${dlotRightBottom.y} ${trenchRightBottom.x},${trenchRightBottom.y} ${trenchTopRight.x},${trenchTopRight.y}`} stroke="#b45309" strokeWidth="1" strokeDasharray="4 3" />
 
           {/* Trench cut slope triangle (MDAO1) */}
-          <g transform={`translate(${trenchLeftBottom.x - (trenchLeftBottom.y - bankOuterLeft.y) / 2 * params.MDAO1}, ${(trenchLeftBottom.y + bankOuterLeft.y) / 2})`}>
+          <g transform={`translate(${trenchLeftBottom.x - (trenchLeftBottom.y - y_ground) / 2 * params.MDAO1}, ${(trenchLeftBottom.y + y_ground) / 2})`}>
             <polyline points={`${-params.MDAO1 * 20},${-20} ${-params.MDAO1 * 20},0 0,0`} strokeWidth="1" />
             <text x={-params.MDAO1 * 20 - 5} y={-8} fill="#854d0e" fontSize="9" stroke="none" textAnchor="end">1</text>
             <text x={-params.MDAO1 * 10} y={10} fill="#854d0e" fontSize="9" stroke="none" textAnchor="middle">{params.MDAO1}</text>
           </g>
 
-          {/* Natural Cut slope triangle (MDAO2) */}
-          <polyline points={`${(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale},${(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) - 1 * scale} ${(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale},${params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y} ${params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x},${params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y}`} strokeWidth="1" />
-          <text x={(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale - 10} y={(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) - 0.5 * scale + 5} fill="#854d0e" fontSize="10" stroke="none" textAnchor="end">1</text>
-          <text x={(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - 0.5 * params.MDAO2 * scale} y={(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) + 12} fill="#854d0e" fontSize="10" stroke="none" textAnchor="middle">{params.MDAO2}</text>
+          {!coKenhNgam && (
+            <>
+              {/* Natural Cut slope triangle (MDAO2) */}
+              <polyline points={`${(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale},${(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) - 1 * scale} ${(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale},${params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y} ${params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x},${params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y}`} strokeWidth="1" />
+              <text x={(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - params.MDAO2 * scale - 10} y={(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) - 0.5 * scale + 5} fill="#854d0e" fontSize="10" stroke="none" textAnchor="end">1</text>
+              <text x={(params.coRanhThoatNuoc ? ditchTopLeft.x : bankOuterLeft.x) - 0.5 * params.MDAO2 * scale} y={(params.coRanhThoatNuoc ? ditchTopLeft.y : bankOuterLeft.y) + 12} fill="#854d0e" fontSize="10" stroke="none" textAnchor="middle">{params.MDAO2}</text>
 
-          {/* Fill slope triangle (MDAP) */}
-          <polyline points={`${bankOuterRight.x + params.MDAP * scale},${bankOuterRight.y + 1 * scale} ${bankOuterRight.x + params.MDAP * scale},${bankOuterRight.y} ${bankOuterRight.x},${bankOuterRight.y}`} strokeWidth="1" />
-          <text x={bankOuterRight.x + params.MDAP * scale + 10} y={bankOuterRight.y + 0.5 * scale + 5} fill="#854d0e" fontSize="10" stroke="none" textAnchor="start">1</text>
-          <text x={bankOuterRight.x + 0.5 * params.MDAP * scale} y={bankOuterRight.y - 5} fill="#854d0e" fontSize="10" stroke="none" textAnchor="middle">{params.MDAP}</text>
+              {/* Fill slope triangle (MDAP) */}
+              <polyline points={`${bankOuterRight.x + params.MDAP * scale},${bankOuterRight.y + 1 * scale} ${bankOuterRight.x + params.MDAP * scale},${bankOuterRight.y} ${bankOuterRight.x},${bankOuterRight.y}`} strokeWidth="1" />
+              <text x={bankOuterRight.x + params.MDAP * scale + 10} y={bankOuterRight.y + 0.5 * scale + 5} fill="#854d0e" fontSize="10" stroke="none" textAnchor="start">1</text>
+              <text x={bankOuterRight.x + 0.5 * params.MDAP * scale} y={bankOuterRight.y - 5} fill="#854d0e" fontSize="10" stroke="none" textAnchor="middle">{params.MDAP}</text>
+            </>
+          )}
 
           {/* DTM lines (Đường tự nhiên) */}
           <line x1={cutLeftFinal.x - 40} y1={cutLeftFinal.y} x2={cutLeftFinal.x + 10} y2={cutLeftFinal.y} strokeDasharray="5,5" strokeWidth="1" />
@@ -264,15 +297,42 @@ export default function ParametricModule({
           <text x={fillRight.x + 45} y={fillRight.y + 4} fill="#854d0e" fontSize="11" stroke="none" textAnchor="start">DTM</text>
         </g>
 
+        {/* Backfill Layer for Underground Canal */}
+        {coKenhNgam && (
+          <polygon
+            points={`${trenchTopLeft.x},${trenchTopLeft.y} ${trenchLeftBottom.x},${trenchLeftBottom.y} ${trenchRightBottom.x},${trenchRightBottom.y} ${trenchTopRight.x},${trenchTopRight.y}`}
+            fill="#fef08a"
+            fillOpacity="0.4"
+            stroke="none"
+          />
+        )}
+
         {/* Structure Layer (Concrete) */}
         <g stroke="#334155" strokeWidth="2" fill="#e2e8f0">
+          {coKenhNgam && (
+            <polygon points={`${p0.x},${p0.y} ${p1_top.x},${p1_top.y} ${p1_right.x},${p1_right.y} ${p2_left.x},${p2_left.y} ${p2_top.x},${p2_top.y} ${p3.x},${p3.y}`} fill="#ffffff" stroke="none" />
+          )}
           <polygon points={concretePolygon} />
           <polygon points={dlotPolygon} fill="#f8fafc" strokeDasharray="2 2" />
           {ditchSvg}
           {/* Top of walls lines */}
-          <line x1={p0.x} y1={p0.y} x2={outerLeftTop.x} y2={outerLeftTop.y} />
-          <line x1={p3.x} y1={p3.y} x2={outerRightTop.x} y2={outerRightTop.y} />
+          {!coTamNap && (
+            <>
+              <line x1={p0.x} y1={p0.y} x2={outerLeftTop.x} y2={outerLeftTop.y} />
+              <line x1={p3.x} y1={p3.y} x2={outerRightTop.x} y2={outerRightTop.y} />
+            </>
+          )}
         </g>
+
+        {/* Cover Plate */}
+        {coTamNap && (
+          <polygon
+            points={`${outerLeftTop.x},${outerLeftTop.y} ${outerRightTop.x},${outerRightTop.y} ${outerRightTop.x},${outerRightTop.y - chieuDayTamNap * scale} ${outerLeftTop.x},${outerLeftTop.y - chieuDayTamNap * scale}`}
+            fill="#e2e8f0"
+            stroke="#334155"
+            strokeWidth="2"
+          />
+        )}
 
         {/* Water Layer */}
         <g fill="rgba(56, 189, 248, 0.4)" stroke="#0ea5e9" strokeWidth="1">
@@ -457,6 +517,31 @@ export default function ParametricModule({
                 <label className="text-[11px] text-slate-700 flex flex-col gap-1 w-1/3">
                   <span className="text-slate-500">Chiều dày (m)</span>
                   <input type="number" step="0.05" value={params.dayBocThaoMoc} onChange={e => handleParamChange('dayBocThaoMoc', e.target.value)} className="w-full border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500" />
+                </label>
+              </div>
+            )}
+
+            <label className="flex items-center gap-3 cursor-pointer mt-3">
+              <div className="relative inline-flex items-center">
+                <input type="checkbox" className="sr-only peer" checked={params.coKenhNgam || false} onChange={e => handleParamChange('coKenhNgam', e.target.checked, false)} />
+                <div className="w-7 h-3.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1.5px] after:left-[1.5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-purple-600"></div>
+              </div>
+              <span className="text-[13px] font-medium text-slate-700">Kênh ngầm (cống hộp)</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer mt-3">
+              <div className="relative inline-flex items-center">
+                <input type="checkbox" className="sr-only peer" checked={params.coKenhNgam ? true : (params.coTamNap || false)} disabled={params.coKenhNgam} onChange={e => handleParamChange('coTamNap', e.target.checked, false)} />
+                <div className="w-7 h-3.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1.5px] after:left-[1.5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
+              </div>
+              <span className={`text-[13px] font-medium text-slate-700 ${params.coKenhNgam ? 'opacity-50' : ''}`}>Có tấm nắp đậy</span>
+            </label>
+
+            {(params.coKenhNgam || params.coTamNap) && (
+              <div className="pl-4 border-l-2 border-slate-200 ml-2 mt-2">
+                <label className="text-[11px] text-slate-700 flex flex-col gap-1 w-1/2">
+                  <span className="text-slate-500">Chiều dày nắp (m)</span>
+                  <input type="number" step="0.01" value={params.chieuDayTamNap} onChange={e => handleParamChange('chieuDayTamNap', e.target.value)} className="w-full border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500" />
                 </label>
               </div>
             )}

@@ -102,7 +102,8 @@ export default function TerrainCrossSectionView({
     BT_trai: 1.5, BT_phai: 1.5, MDAO1: 1.5, MDAO2: 1.0, MDAP: 1.75,
     coRanhThoatNuoc: false, DTN: 0.4, BTN: 0.4, HTN: 0.4, coTrongCo: false,
     coNgamMong: false,
-    vatLieuKenh: 'Bê tông cốt thép M250', vatLieuLot: 'Bê tông lót M100', vatLieuRanh: 'Xây gạch mác 75'
+    vatLieuKenh: 'Bê tông cốt thép M250', vatLieuLot: 'Bê tông lót M100', vatLieuRanh: 'Xây gạch mác 75',
+    coTamNap: false, chieuDayTamNap: 0.1, coKenhNgam: false
   };
   const segParam = crossSectionParams[selectedSegmentIdx] || {};
   const localParams = (stake && stakeParams)?.[stake.name] || {};
@@ -186,7 +187,11 @@ export default function TerrainCrossSectionView({
     const dlotLeftBottom = { x: dlotLeftTop.x, y: dlotLeftTop.y - pDLOT };
     const dlotRightBottom = { x: dlotRightTop.x, y: dlotRightTop.y - pDLOT };
 
-    const pDBO = Number(params.DBO) || 0;
+    const coKenhNgam = !!params.coKenhNgam;
+    const coTamNap = coKenhNgam || !!params.coTamNap;
+    const chieuDayTamNap = Number(params.chieuDayTamNap) || 0.1;
+
+    const pDBO = coKenhNgam ? 0 : (Number(params.DBO) || 0);
     const bankElevLeft = p0.y - pDBO;
     const bankElevRight = p3.y - pDBO;
 
@@ -195,8 +200,8 @@ export default function TerrainCrossSectionView({
     const outerWallRightSlope = (outerRightTop.x - outerRightBottom.x) / (outerRightTop.y - outerRightBottom.y || 0.001);
     const bankInnerRight = { x: outerRightBottom.x + (bankElevRight - outerRightBottom.y) * outerWallRightSlope, y: bankElevRight };
 
-    const pBT_trai = Number(params.BT_trai) || 0;
-    const pBT_phai = Number(params.BT_phai) || 0;
+    const pBT_trai = coKenhNgam ? 0 : (Number(params.BT_trai) || 0);
+    const pBT_phai = coKenhNgam ? 0 : (Number(params.BT_phai) || 0);
     let bankOuterLeft = { x: bankInnerLeft.x - pBT_trai, y: bankElevLeft };
     let bankOuterRight = { x: bankInnerRight.x + pBT_phai, y: bankElevRight };
 
@@ -337,11 +342,11 @@ export default function TerrainCrossSectionView({
     // Trench tops and cuts
     const x_trench_left_top = trenchLeftBottom.x - (bankElevLeft - trenchLeftBottom.y) * pMDAO1;
     const test_bank_x_l = Math.min(bankOuterLeft.x, x_trench_left_top);
-    const isLeftCut = (getTerrainElev(test_bank_x_l) > bankElevLeft);
+    const isLeftCut = coKenhNgam || (getTerrainElev(test_bank_x_l) > bankElevLeft);
 
     const x_trench_right_top = trenchRightBottom.x + (bankElevRight - trenchRightBottom.y) * pMDAO1;
     const test_bank_x_r = Math.max(bankOuterRight.x, x_trench_right_top);
-    const isRightCut = (getTerrainElev(test_bank_x_r) > bankElevRight);
+    const isRightCut = coKenhNgam || (getTerrainElev(test_bank_x_r) > bankElevRight);
 
     // Nếu thấp hơn đường địa hình thì tịnh tiến điểm A sang trái, điểm B sang phải một đoạn bằng lưu không móng (B3)
     const isALowerThanTerrain = getTerrainElev(dlotLeftBottom.x) > dlotLeftBottom.y;
@@ -384,20 +389,32 @@ export default function TerrainCrossSectionView({
     // Điểm 5: Giao điểm giữa mái đắp bờ trái (từ điểm 3) với đường địa hình tự nhiên (hoặc mái đào móng trái A-C nếu nằm trong hố đào)
     // Điểm 6: Giao điểm giữa mái đắp bờ phải (từ điểm 4) với đường địa hình tự nhiên (hoặc mái đào móng phải B-D nếu nằm trong hố đào)
     const dayBocThaoMoc = Number(params.dayBocThaoMoc) || 0.2;
-    const point5_terrain = findIntersection(bankOuterLeft, -pMDAP, -1);
-    const point6_terrain = findIntersection(bankOuterRight, pMDAP, -1);
+    const point5_terrain = coKenhNgam ? null : findIntersection(bankOuterLeft, -pMDAP, -1);
+    const point6_terrain = coKenhNgam ? null : findIntersection(bankOuterRight, pMDAP, -1);
 
-    const isFullFill = !isALowerThanTerrain && !isBLowerThanTerrain;
+    const isFullFill = !coKenhNgam && (!isALowerThanTerrain && !isBLowerThanTerrain);
     
     let point5: { x: number; y: number } | null = null;
-    if (isLeftCut) {
-      if (params.bankCutOption === 'mo_rong_bo') {
-        if (isALowerThanTerrain && pMDAO1 > 0) {
-          const x5 = pointA.x - pMDAO1 * (bankElevLeft - pointA.y);
-          point5 = { x: x5, y: bankElevLeft };
+    if (!coKenhNgam) {
+      if (isLeftCut) {
+        if (params.bankCutOption === 'mo_rong_bo') {
+          if (isALowerThanTerrain && pMDAO1 > 0) {
+            const x5 = pointA.x - pMDAO1 * (bankElevLeft - pointA.y);
+            point5 = { x: x5, y: bankElevLeft };
+          }
+        } else {
+          // 'dap_bo'
+          if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
+            const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
+            const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
+            if (x5 > intersectA.x && y5 >= pointA.y && y5 <= bankOuterLeft.y) {
+              point5 = { x: x5, y: y5 };
+            }
+          }
         }
       } else {
-        // 'dap_bo'
+        // Fill section
+        point5 = point5_terrain;
         if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
           const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
           const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
@@ -406,27 +423,29 @@ export default function TerrainCrossSectionView({
           }
         }
       }
-    } else {
-      // Fill section
-      point5 = point5_terrain;
-      if (isALowerThanTerrain && intersectA && pMDAO1 > 0 && pMDAP > 0) {
-        const y5 = (pointA.x - bankOuterLeft.x + pMDAO1 * pointA.y + pMDAP * bankOuterLeft.y) / (pMDAO1 + pMDAP);
-        const x5 = pointA.x - pMDAO1 * (y5 - pointA.y);
-        if (x5 > intersectA.x && y5 >= pointA.y && y5 <= bankOuterLeft.y) {
-          point5 = { x: x5, y: y5 };
-        }
-      }
     }
 
     let point6: { x: number; y: number } | null = null;
-    if (isRightCut) {
-      if (params.bankCutOption === 'mo_rong_bo') {
-        if (isBLowerThanTerrain && pMDAO1 > 0) {
-          const x6 = pointB.x + pMDAO1 * (bankElevRight - pointB.y);
-          point6 = { x: x6, y: bankElevRight };
+    if (!coKenhNgam) {
+      if (isRightCut) {
+        if (params.bankCutOption === 'mo_rong_bo') {
+          if (isBLowerThanTerrain && pMDAO1 > 0) {
+            const x6 = pointB.x + pMDAO1 * (bankElevRight - pointB.y);
+            point6 = { x: x6, y: bankElevRight };
+          }
+        } else {
+          // 'dap_bo'
+          if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
+            const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
+            const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
+            if (x6 < intersectB.x && y6 >= pointB.y && y6 <= bankOuterRight.y) {
+              point6 = { x: x6, y: y6 };
+            }
+          }
         }
       } else {
-        // 'dap_bo'
+        // Fill section
+        point6 = point6_terrain;
         if (isBLowerThanTerrain && intersectB && pMDAO1 > 0 && pMDAP > 0) {
           const y6 = (bankOuterRight.x - pointB.x + pMDAP * bankOuterRight.y + pMDAO1 * pointB.y) / (pMDAO1 + pMDAP);
           const x6 = pointB.x + pMDAO1 * (y6 - pointB.y);
@@ -694,9 +713,22 @@ export default function TerrainCrossSectionView({
       }
     }
 
-    const S_dap = useFullFill 
-      ? calculatePolygonArea(fullEmbankmentPoly)
-      : calculatePolygonArea(leftEmbankmentPoly) + calculatePolygonArea(rightEmbankmentPoly);
+    let S_dap = 0;
+    if (coKenhNgam) {
+      const S_outer = calculatePolygonArea([
+        outerLeftTop, outerLeftBottom, concLeftTop, concLeftBottom,
+        concRightBottom, concRightTop, outerRightBottom, outerRightTop
+      ]);
+      const S_dlot = calculatePolygonArea([
+        dlotLeftTop, dlotRightTop, dlotRightBottom, dlotLeftBottom
+      ]);
+      const S_tam_nap = (outerRightTop.x - outerLeftTop.x) * chieuDayTamNap;
+      S_dap = Math.max(0, S_dao_trang - S_outer - S_dlot - S_tam_nap);
+    } else {
+      S_dap = useFullFill 
+        ? calculatePolygonArea(fullEmbankmentPoly)
+        : calculatePolygonArea(leftEmbankmentPoly) + calculatePolygonArea(rightEmbankmentPoly);
+    }
 
     // L trồng cỏ = tổng chiều dài các mái đắp bờ kênh (đoạn 3->5 và 4->6)
     const L_35 = (point5 && !(isLeftCut && params.bankCutOption === 'mo_rong_bo'))
@@ -709,21 +741,25 @@ export default function TerrainCrossSectionView({
 
     // Xác định 2 điểm giới hạn cắt bỏ đường địa hình giữa C-D
     let leftCutPoint: { x: number; y: number } | null = null;
-    if (intersectA) {
-      leftCutPoint = intersectA; // Điểm C
-    } else if (point5) {
-      leftCutPoint = point5;     // Điểm 5
-    } else if (pointE && isBLowerThanTerrain) {
-      leftCutPoint = pointE;     // Điểm E khi B thấp hơn địa hình
+    if (!coKenhNgam) {
+      if (intersectA) {
+        leftCutPoint = intersectA; // Điểm C
+      } else if (point5) {
+        leftCutPoint = point5;     // Điểm 5
+      } else if (pointE && isBLowerThanTerrain) {
+        leftCutPoint = pointE;     // Điểm E khi B thấp hơn địa hình
+      }
     }
 
     let rightCutPoint: { x: number; y: number } | null = null;
-    if (intersectB) {
-      rightCutPoint = intersectB; // Điểm D
-    } else if (point6) {
-      rightCutPoint = point6;     // Điểm 6
-    } else if (pointE && isALowerThanTerrain) {
-      rightCutPoint = pointE;     // Điểm E khi A thấp hơn địa hình
+    if (!coKenhNgam) {
+      if (intersectB) {
+        rightCutPoint = intersectB; // Điểm D
+      } else if (point6) {
+        rightCutPoint = point6;     // Điểm 6
+      } else if (pointE && isALowerThanTerrain) {
+        rightCutPoint = pointE;     // Điểm E khi A thấp hơn địa hình
+      }
     }
 
     let trenchTopLeft = trenchLeftBottom;
@@ -1295,6 +1331,18 @@ export default function TerrainCrossSectionView({
           />
         )}
 
+        {/* Backfill Area for Underground Canal (Vùng đắp đất hoàn trả màu vàng) */}
+        {showOverlay && coKenhNgam && excavationCutoutPoly.length > 0 && (
+          <polygon
+            points={ptsToSvg(excavationCutoutPoly.map(p => `${p.x},${p.y}`).join(' '))}
+            fill="#fef08a"
+            fillOpacity="0.85"
+            stroke="#eab308"
+            strokeWidth="1"
+            clipPath="url(#drawArea)"
+          />
+        )}
+
         {/* Full Embankment Area fill (Vùng đắp hoàn toàn màu vàng) */}
         {showOverlay && useFullFill && fullEmbankmentPoly.length > 0 && (
           <polygon
@@ -1383,10 +1431,41 @@ export default function TerrainCrossSectionView({
         {showCanal && (
           <>
             {/* Concrete Lining */}
+            {coKenhNgam && (
+              <polygon
+                points={ptsToSvg([
+                  `${p0.x},${p0.y}`,
+                  `${p1_top.x},${p1_top.y}`,
+                  `${p1_right.x},${p1_right.y}`,
+                  `${p2_left.x},${p2_left.y}`,
+                  `${p2_top.x},${p2_top.y}`,
+                  `${p3.x},${p3.y}`
+                ].join(' '))}
+                fill="#ffffff"
+                stroke="none"
+                clipPath="url(#drawArea)"
+              />
+            )}
             <polygon points={concretePolygon} fill="#94a3b8" stroke="#334155" strokeWidth="1" clipPath="url(#drawArea)" />
 
             {/* Lean Concrete */}
             <polygon points={dlotPolygon} fill="#cbd5e1" stroke="#475569" strokeWidth="0.5" clipPath="url(#drawArea)" />
+
+            {/* Cover Plate */}
+            {coTamNap && (
+              <polygon
+                points={ptsToSvg([
+                  `${outerLeftTop.x},${outerLeftTop.y}`,
+                  `${outerRightTop.x},${outerRightTop.y}`,
+                  `${outerRightTop.x},${outerRightTop.y + chieuDayTamNap}`,
+                  `${outerLeftTop.x},${outerLeftTop.y + chieuDayTamNap}`
+                ].join(' '))}
+                fill="#94a3b8"
+                stroke="#334155"
+                strokeWidth="1"
+                clipPath="url(#drawArea)"
+              />
+            )}
 
             {/* Water fill */}
             <polygon points={waterPoints} fill="#3b82f6" fillOpacity="0.25" clipPath="url(#drawArea)" />
